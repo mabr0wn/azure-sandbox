@@ -1,6 +1,6 @@
 param location string = 'westus'
-param storageAccountName string = 'toylaunch${uniqueString(resourceGroup().id)}'
-param appServiceAppName string = 'toylaunch${uniqueString(resourceGroup().id)}'
+param storageAccountName string = 'labsa${uniqueString(resourceGroup().id)}'
+param appServiceAppName string = 'labapp${uniqueString(resourceGroup().id)}'
 
 @allowed([
   'nonprod'

@@ -2,9 +2,9 @@
 #  
 CLS  
 # Define the values applicable for the application used to connect to the Graph ( **ensure to change the below 3 values of AppId or Client ID, Tenant ID and Client Secret for your application of your tenant**)  
-$AppId = "fb59e6e1-1c1c-4e6b-9153-493a0c7549bc"  
-$TenantId = "3b22d4ab-9fa6-4c14-a370-1ac8eaad49da"  
-$AppSecret = 'x7b8Q~j3eTzU.76IouX6oByEPhvKNFbMNetPicpO'  
+$AppId = ""  
+$TenantId = ""  
+$AppSecret = "" 
   
 # Construct URI and body needed for authentication  
 $uri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"  

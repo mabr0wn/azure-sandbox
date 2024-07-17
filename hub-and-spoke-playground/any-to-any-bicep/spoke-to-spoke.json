@@ -1,0 +1,393 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.24.24.22086",
+      "templateHash": "3756874389302248009"
+    }
+  },
+  "parameters": {
+    "firewallTier": {
+      "type": "string",
+      "defaultValue": "Premium",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ],
+      "metadata": {
+        "description": "Basic, Standard or Premium tier"
+      }
+    },
+    "disableBgpRoutePropagation": {
+      "type": "bool",
+      "defaultValue": false
+    },
+    "allowIpAddresses": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "Additional IP addresses or subnets to add in the firewall rules"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "eastus2"
+    }
+  },
+  "variables": {
+    "routeTables_all_to_firewall_we_name": "all-to-firewall-we",
+    "hubName": "vnet-hub-prod-eastus2",
+    "spoke01Name": "peer-fosa-hub-eastus2",
+    "spoke02Name": "peer-infra-hub-eastus2",
+    "firewallName": "fosa-firewall",
+    "firewallIPName": "fosa-firewall-ip",
+    "firewallIpAddress": "10.12.3.4"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/routeTables",
+      "apiVersion": "2020-05-01",
+      "name": "[variables('routeTables_all_to_firewall_we_name')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "disableBgpRoutePropagation": "[parameters('disableBgpRoutePropagation')]",
+        "routes": [
+          {
+            "name": "all-to-firewall-we",
+            "properties": {
+              "addressPrefix": "0.0.0.0/0",
+              "nextHopType": "VirtualAppliance",
+              "nextHopIpAddress": "[variables('firewallIpAddress')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/routeTables",
+      "apiVersion": "2020-05-01",
+      "name": "gateway-route",
+      "location": "[parameters('location')]",
+      "properties": {
+        "disableBgpRoutePropagation": "[parameters('disableBgpRoutePropagation')]",
+        "routes": [
+          {
+            "name": "peer-fosa-hub-eastus2",
+            "properties": {
+              "addressPrefix": "10.190.24.0/22",
+              "nextHopType": "VirtualAppliance",
+              "nextHopIpAddress": "[variables('firewallIpAddress')]"
+            }
+          },
+          {
+            "name": "peer-infra-hub-eastus2",
+            "properties": {
+              "addressPrefix": "10.190.32.0/22",
+              "nextHopType": "VirtualAppliance",
+              "nextHopIpAddress": "[variables('firewallIpAddress')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2020-05-01",
+      "name": "[format('{0}/default', variables('spoke01Name'))]",
+      "properties": {
+        "addressPrefix": "10.190.24.0/26",
+        "routeTable": {
+          "id": "[resourceId('Microsoft.Network/routeTables', variables('routeTables_all_to_firewall_we_name'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/routeTables', variables('routeTables_all_to_firewall_we_name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2020-05-01",
+      "name": "[format('{0}/services', variables('spoke01Name'))]",
+      "properties": {
+        "addressPrefix": "10.190.24.64/26",
+        "routeTable": {
+          "id": "[resourceId('Microsoft.Network/routeTables', variables('routeTables_all_to_firewall_we_name'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/routeTables', variables('routeTables_all_to_firewall_we_name'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', split(format('{0}/default', variables('spoke01Name')), '/')[0], split(format('{0}/default', variables('spoke01Name')), '/')[1])]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2020-05-01",
+      "name": "[format('{0}/default', variables('spoke02Name'))]",
+      "properties": {
+        "addressPrefix": "10.190.32.0/26",
+        "routeTable": {
+          "id": "[resourceId('Microsoft.Network/routeTables', variables('routeTables_all_to_firewall_we_name'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/routeTables', variables('routeTables_all_to_firewall_we_name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2020-05-01",
+      "name": "[format('{0}/services', variables('spoke02Name'))]",
+      "properties": {
+        "addressPrefix": "10.190.32.64/26",
+        "routeTable": {
+          "id": "[resourceId('Microsoft.Network/routeTables', variables('routeTables_all_to_firewall_we_name'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/routeTables', variables('routeTables_all_to_firewall_we_name'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', split(format('{0}/default', variables('spoke02Name')), '/')[0], split(format('{0}/default', variables('spoke02Name')), '/')[1])]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2020-05-01",
+      "name": "[format('{0}/GatewaySubnet', variables('hubName'))]",
+      "properties": {
+        "addressPrefix": "10.190.8.0/21",
+        "routeTable": {
+          "id": "[resourceId('Microsoft.Network/routeTables', 'gateway-route')]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/routeTables', 'gateway-route')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2019-09-01",
+      "name": "[variables('firewallIPName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      }
+    },
+    {
+      "type": "Microsoft.Network/azureFirewalls",
+      "apiVersion": "2022-07-01",
+      "name": "[variables('firewallName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "AZFW_VNet",
+          "tier": "[parameters('firewallTier')]"
+        },
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('hubName'), 'AzureFirewallSubnet')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('firewallIPName'))]"
+              }
+            }
+          }
+        ],
+        "firewallPolicy": {
+          "id": "[reference(resourceId('Microsoft.Resources/deployments', 'fwPolicyDeploy'), '2022-09-01').outputs.policyid.value]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('firewallIPName'))]",
+        "[resourceId('Microsoft.Resources/deployments', 'fwPolicyDeploy')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "fwPolicyDeploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "firewallTier": {
+            "value": "[parameters('firewallTier')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "allowIpAddresses": {
+            "value": "[parameters('allowIpAddresses')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.24.24.22086",
+              "templateHash": "6358395766275978270"
+            }
+          },
+          "parameters": {
+            "allowIpAddresses": {
+              "type": "array",
+              "defaultValue": []
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "eastus2"
+            },
+            "firewallTier": {
+              "type": "string",
+              "defaultValue": "Premium",
+              "allowedValues": [
+                "Basic",
+                "Standard",
+                "Premium"
+              ],
+              "metadata": {
+                "description": "Basic, Standard or Premium tier"
+              }
+            }
+          },
+          "variables": {
+            "ipGroups_all_spokes_subnets_name": "all-spokes-subnets",
+            "firewallPolicyName": "my-firewall-policy",
+            "ipGroupAddresses": "[concat(createArray('10.190.24.0/22', '10.190.32.0/22'), parameters('allowIpAddresses'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/ipGroups",
+              "apiVersion": "2020-05-01",
+              "name": "[variables('ipGroups_all_spokes_subnets_name')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "ipAddresses": "[variables('ipGroupAddresses')]"
+              }
+            },
+            {
+              "type": "Microsoft.Network/firewallPolicies",
+              "apiVersion": "2020-05-01",
+              "name": "[variables('firewallPolicyName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "threatIntelMode": "Alert",
+                "sku": {
+                  "tier": "Premium"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Network/firewallPolicies/ruleCollectionGroups",
+              "apiVersion": "2022-07-01",
+              "name": "[format('{0}/{1}', variables('firewallPolicyName'), 'DefaultApplicationRuleCollectionGroup')]",
+              "properties": {
+                "priority": 300,
+                "ruleCollections": [
+                  {
+                    "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                    "action": {
+                      "type": "Allow"
+                    },
+                    "rules": [
+                      {
+                        "ruleType": "ApplicationRule",
+                        "name": "allow-internet-traffic-out",
+                        "protocols": [
+                          {
+                            "protocolType": "Http",
+                            "port": 80
+                          },
+                          {
+                            "protocolType": "Https",
+                            "port": 443
+                          }
+                        ],
+                        "fqdnTags": [],
+                        "webCategories": [],
+                        "targetFqdns": [
+                          "*"
+                        ],
+                        "targetUrls": [],
+                        "terminateTLS": false,
+                        "sourceAddresses": [],
+                        "destinationAddresses": [],
+                        "sourceIpGroups": [
+                          "[resourceId('Microsoft.Network/ipGroups', variables('ipGroups_all_spokes_subnets_name'))]"
+                        ]
+                      }
+                    ],
+                    "name": "internet-out-collection",
+                    "priority": 200
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/ipGroups', variables('ipGroups_all_spokes_subnets_name'))]",
+                "[resourceId('Microsoft.Network/firewallPolicies', variables('firewallPolicyName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/firewallPolicies/ruleCollectionGroups",
+              "apiVersion": "2020-05-01",
+              "name": "[format('{0}/{1}', variables('firewallPolicyName'), 'DefaultNetworkRuleCollectionGroup')]",
+              "properties": {
+                "priority": 300,
+                "ruleCollections": [
+                  {
+                    "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+                    "name": "any-to-any-collection",
+                    "priority": 1000,
+                    "action": {
+                      "type": "Allow"
+                    },
+                    "rules": [
+                      {
+                        "ruleType": "NetworkRule",
+                        "name": "allow-spoke-to-spoke-traffic",
+                        "ipProtocols": [
+                          "Any"
+                        ],
+                        "sourceIpGroups": [
+                          "[resourceId('Microsoft.Network/ipGroups', variables('ipGroups_all_spokes_subnets_name'))]"
+                        ],
+                        "destinationPorts": [
+                          "*"
+                        ],
+                        "destinationIpGroups": [
+                          "[resourceId('Microsoft.Network/ipGroups', variables('ipGroups_all_spokes_subnets_name'))]"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/ipGroups', variables('ipGroups_all_spokes_subnets_name'))]",
+                "[resourceId('Microsoft.Network/firewallPolicies', variables('firewallPolicyName'))]",
+                "[resourceId('Microsoft.Network/firewallPolicies/ruleCollectionGroups', variables('firewallPolicyName'), 'DefaultApplicationRuleCollectionGroup')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "policyid": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/firewallPolicies', variables('firewallPolicyName'))]"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

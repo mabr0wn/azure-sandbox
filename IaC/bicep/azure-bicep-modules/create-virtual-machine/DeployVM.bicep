@@ -1,8 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 // VM parameters
 ////////////////////////////////////////////////////////////////////////////////
-// @description('Enter the prefix.')
-// param prefix string
 @description('Enter the department. i.e. fosa')
 param dept string
 @allowed([
@@ -41,27 +39,6 @@ param vmPassword string
 param subnetName string
 param vnetName string
 param vNetRG string
-//param metadata object
-// var tags = {
-//   Application: metadata.app
-//   BusinessUnit: metadata.business
-//   Created: metadata.created
-//   Owner: metadata.owner
-//   Environment: metadata.env
-// }
-
-////////////////////////////////////////////////////////////////////////////////
-// Key vault parameters
-////////////////////////////////////////////////////////////////////////////////
-// @description('Enter the subscription Id from Azure.')
-// param subscriptionId string
-// param keyVaultResourceGroup string = 'rg-${dept}-misc-${env}'
-// param keyVaultName string = '${prefix}-${dept}-kv-${env}'
-
-// resource kv 'Microsoft.KeyVault/vaults@2021-06-01-preview' existing = {
-//   name: keyVaultName
-//   scope: resourceGroup(subscriptionId, keyVaultResourceGroup )
-// }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Deployment vm start
@@ -83,6 +60,5 @@ module azVirtualMachine './Templates/AzVM.bicep' = {
     vmSize: vmSize
     vNetName: vnetName
     vNetResourceGroup: vNetRG
-    //tags: tags
   }
 }

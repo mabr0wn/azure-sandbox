@@ -1,6 +1,9 @@
-name: Deploy Azure storage account Bicep file
+name: Deploy Azure virtual machine Bicep file
+ 
 on:
   workflow_dispatch:
+  pull_request:
+ 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -19,6 +22,6 @@ jobs:
       with:
         subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
         resourceGroupName: ${{ secrets.AZURE_RG }}
-        template: ./infrastructure-as-a-code-sandbox/bicep/create-storage-account/main.bicep
-        parameters: 'storagePrefix=skynet location=eastus uniqueStorageName=test storageSKU=Standard_LRS'
+        template: ./infrastructure-as-a-code-sandbox/bicep/create-virtual-machine/main.bicep
+        parameters: ./
         failOnStdErr: false

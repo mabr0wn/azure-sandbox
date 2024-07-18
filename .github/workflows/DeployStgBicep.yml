@@ -19,5 +19,5 @@ jobs:
         subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
         resourceGroupName: ${{ secrets.AZURE_RG }}
         template: ./infrastructure-as-a-code-sandbox/bicep/create-storage-account/main.bicep
-        parameters: 'storagePrefix=skynet storageSKU=Standard_LRS'
+        parameters: 'storagePrefix=skynet location=eastus uniqueStorageName=test storageSKU=Standard_LRS'
         failOnStdErr: false

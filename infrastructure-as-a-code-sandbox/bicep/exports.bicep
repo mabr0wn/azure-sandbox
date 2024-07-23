@@ -1,7 +1,7 @@
 @export()
 type myObjectType = {
-  foo: string
-  bar: int
+  storagePrefix: string
+  storageSKU: string
 }
 
 @export()

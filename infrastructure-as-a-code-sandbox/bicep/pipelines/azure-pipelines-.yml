@@ -1,0 +1,38 @@
+name: $(BuildDefinitionName)_$(SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)
+trigger:
+  branches:
+    include:
+     # - main
+  paths:
+    include:
+      - templates/*
+      - pipelines/azure-pipelines-.yml
+      - pipelines/templates/*
+    exclude:
+      - "README.md"
+pr:
+  branches:
+    include:
+     # - main
+      - feature/*
+      - fix/*
+  paths:
+    exclude:
+      - "README.md"
+variables:
+  location: "eastus2"
+  psRuleBaselineName: "Azure.Skynet"
+stages:
+  - template: templates/template-test-and-validate.yml
+    parameters:
+      templateName: "azure-sandboxes"
+      templateFileDirectory: "templates/*"
+      azureServiceConnection: "skynet-azure-sandbox-root"
+      agentPoolName: "windows-latest"
+      psRuleBaselineName: "$(psRuleBaselineName)"
+      azureLocation: "$(location)"
+      templateScope: "tenant"
+      runBicepLinter: true
+      runTemplateValidation: true
+      runWhatIfTests: true
+      runPSRuleTests: true

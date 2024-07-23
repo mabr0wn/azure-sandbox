@@ -1,0 +1,14 @@
+# compliance/custom-baseline.yml
+- baseline:
+    name: Custom.Baseline
+    rules:
+      - rule:
+          name: EnsureTagging
+          description: All resources must have a 'Department' tag.
+          condition: >
+            resources[].tags.Department != null
+      - rule:
+          name: EnsureEncryption
+          description: Ensure all storage accounts have blob encryption enabled.
+          condition: >
+            resources[?type == 'Microsoft.Storage/storageAccounts'].properties.encryption.services.blob.enabled == true

@@ -1,9 +1,10 @@
-param name string
-@description('Enter the prefix of the storage account.')
+@description('Enter the name of the key-vault account.')
+param name string = ''
+@description('Enter the name of the key account.')
 param keyName string
 @description('Enter the azure location.')
 param location string
-@description('Enter the SKU.')
+@description('Enter the vault name.')
 param vaultName string
 
 module azKV './modules/keyvault.bicep' = {

@@ -1,5 +1,4 @@
-// This will be the main bicep to link different modules together
-// i.e. storage account module with resource group module.
+// https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/bicep-import
 import * as myImports from './exports.bicep'
 import {myObjectType, sayHello} from 'exports.bicep'
 

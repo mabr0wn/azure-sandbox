@@ -13,5 +13,4 @@ module azKV './modules/keyvault.bicep' = {
     vaultName: vaultName
     location: location
   }
-
 }

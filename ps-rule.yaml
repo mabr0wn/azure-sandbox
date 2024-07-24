@@ -8,8 +8,9 @@ include:
 
 input:
   pathIgnore:
-    - modules/
-    - bicepconfig.json
+    - '**/modules*/**'
+    - '**/*.json'
+    - '**/*.bicepparam'
 
 configuration:
   # Enable expansion of Azure Template files.
@@ -28,3 +29,5 @@ rule:
     # Ignore the following rules for all resources
     - Azure.Resource.UseTags
     - Azure.Template.UseDescriptions
+    - Azure.VM.UseHybridUseBenefit
+    - Azure.VM.Standalone

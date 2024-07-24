@@ -8,9 +8,13 @@ include:
 
 input:
   pathIgnore:
+    - '.git/**' 
     - '**/modules*/**'
     - '**/*.json'
     - '**/*.bicepparam'
+    - 'azure-compliance-sandbox/'
+    - 'azure-policy-sandbox/'
+    - 'hub-and-spoke-sandbox/'
 
 configuration:
   # Enable expansion of Azure Template files.

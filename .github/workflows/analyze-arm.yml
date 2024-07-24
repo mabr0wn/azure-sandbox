@@ -1,9 +1,9 @@
-name: Analyze templates
+name: Analyze IaC
 on:
 - pull_request
 jobs:
   analyze_arm:
-    name: Analyze templates
+    name: Analyze IaC
     runs-on: ubuntu-latest
     steps:
 

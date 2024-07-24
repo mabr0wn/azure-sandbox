@@ -1,0 +1,58 @@
+#
+# Analyze repository with PSRule for Azure
+#
+
+# Note:
+# This workflow is designed to run in templated repositories to check Azure Infrastructure as Code.
+
+# For PSRule for Azure documentation see:
+# https://aka.ms/ps-rule-azure
+
+# For action details see:
+# https://aka.ms/ps-rule-action
+name: Analyze Azure IaC 
+# Run for main or PRs against main
+on:
+  # push:
+  #   branches:
+  #     - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  analyze:
+    name: Analyze repository
+    runs-on: ubuntu-latest
+    if: github.repository != 'mabr0wn/azure-sandbox'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Run analysis by using the PSRule GitHub action.
+      - name: Run PSRule analysis
+        uses: microsoft/ps-rule@v2.9.0
+        with:
+          modules: PSRule.Rules.Azure
+          outputFormat: Sarif
+          outputPath: reports/ps-rule-results.sarif
+          summary: true
+        env:
+          PSRULE_INPUT_IGNOREUNCHANGEDPATH: true
+
+      # If you have GitHub Advanced Security you can upload PSRule scan results.
+      # Uncomment the next step to use this feature.
+      # - name: Upload results to security tab
+      #   uses: github/codeql-action/upload-sarif@v2
+      #   if: always()
+      #   with:
+      #     sarif_file: reports/ps-rule-results.sarif
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: PSRule-Sarif
+          path: reports/ps-rule-results.sarif
+          retention-days: 1
+          if-no-files-found: error

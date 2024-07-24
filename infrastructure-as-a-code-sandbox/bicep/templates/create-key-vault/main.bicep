@@ -1,10 +1,16 @@
 @description('Configures the location to deploy the Azure resources.')
 param location string = resourceGroup().location
+@description('Configures Log Analytics workspace configure for auditing for the Azure resources.')
+param workspaceId string
+@description('Configures the key vault name to deploy the Azure resources.')
+param kvname string
+@description('Configures the audit logs name to deploy the Azure resources.')
+param name string
 
 module kv_required_params './modules/keyvault.bicep' = {
   name: 'kv_required_params'
   params: {
-    name: 'kvskynet001'
+    name: kvname
     location: location
     tags: {
       env: 'prod'
@@ -13,14 +19,14 @@ module kv_required_params './modules/keyvault.bicep' = {
 }
 
 // Log Analytics workspace configure for auditing
-module audit_logws './modules/keyvault.bicep' = {
+module audit_logs './modules/keyvault.bicep' = {
   name: 'audit_logs'
   params: {
-    name: 'kvskynet002'
+    name: name
     location: location
     tags: {
       env: 'prod'
     }
-    workspaceId: '/subscriptions/<subscription_id>/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/latest001'
+    workspaceId: workspaceId
   }
 }

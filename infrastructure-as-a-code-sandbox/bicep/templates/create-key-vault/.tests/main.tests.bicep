@@ -8,7 +8,7 @@ param location string = resourceGroup().location
 module test_required_params '../modules/keyvault.bicep' = {
   name: 'test_required_params'
   params: {
-    name: 'test'
+    name: 'kvtest001'
     location: location
     tags: {
       env: 'test'

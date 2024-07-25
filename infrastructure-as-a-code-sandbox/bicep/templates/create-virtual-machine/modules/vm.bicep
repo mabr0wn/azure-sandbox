@@ -109,7 +109,7 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(
   dependsOn: []
 }]
 
-resource rssm 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): {
+resource domainName 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): {
   name: toLower('${vmName}${i + 1}p/joindomain')
   location: location
   properties: {
@@ -133,3 +133,31 @@ resource rssm 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i
     virtualmachine
   ]
 }]
+
+resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
+  name: 'runCustomPowerShellScript'
+  location: resourceGroup().location
+  kind: 'AzurePowerShell'
+  properties: {
+    azPowerShellVersion: '3.0' // Specify the desired Azure PowerShell version
+    scriptContent: '''
+      # PowerShell script content here
+      Write-Output "Starting custom PowerShell script execution..."
+      
+      # Example: Creating a resource group
+      $resourceGroupName = 'myResourceGroup'
+      $location = 'EastUS'
+      
+      Write-Output "Creating resource group: $resourceGroupName in location: $location"
+      New-AzResourceGroup -Name $resourceGroupName -Location $location
+      
+      Write-Output "Custom PowerShell script execution completed."
+    '''
+    timeout: 'PT30M' // Timeout for the script execution
+    cleanupPreference: 'OnSuccess' // Cleanup resources after successful execution
+    retentionInterval: 'P1D' // Retain resources for 1 day after execution
+  }
+  dependsOn: [
+    domainName
+  ]
+}

@@ -1,0 +1,36 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# Note:
+# This files demonstrates using YAML-based rules.
+
+---
+# Synopsis: Azure resource must have an valid env tag set.
+apiVersion: github.com/microsoft/PSRule/v1
+kind: Rule
+metadata:
+  name: Org.Azure.Tags
+spec:
+  with:
+    - PSRule.Rules.Azure\Azure.Resource.SupportsTags
+  condition:
+    allOf:
+      - in:
+          - 'prod'
+          - 'test'
+          - 'dev'
+        field: 'tags.env'
+
+---
+# Synopsis: Policy exemptions must be approved by the security team and stored within policies.
+apiVersion: github.com/microsoft/PSRule/v1
+kind: Rule
+metadata:
+  name: Lab.Owner
+spec:
+  type:
+    - Microsoft.Authorization/policyExemptions
+  condition:
+    source: Parameter
+    withinPath:
+      - azure-sanbox/azure-policy-sandbox/polcies/allowed_tag_values_policy/

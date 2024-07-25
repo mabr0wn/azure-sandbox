@@ -1,0 +1,37 @@
+{
+    "properties": {
+      "displayName": "Allow only specific tag values",
+      "description": "This policy ensures that only specific tag values ('prod', 'dev', 'test') are allowed on resources.",
+      "mode": "Indexed",
+      "parameters": {
+        "allowedTagValues": {
+          "type": "Array",
+          "metadata": {
+            "description": "The list of allowed tag values",
+            "displayName": "Allowed Tag Values"
+          },
+          "defaultValue": ["prod", "dev", "test"]
+        }
+      },
+      "policyRule": {
+        "if": {
+          "allOf": [
+            {
+              "field": "tags",
+              "exists": "true"
+            },
+            {
+              "not": {
+                "field": "tags[*]",
+                "in": "[parameters('allowedTagValues')]"
+              }
+            }
+          ]
+        },
+        "then": {
+          "effect": "deny"
+        }
+      }
+    }
+  }
+  

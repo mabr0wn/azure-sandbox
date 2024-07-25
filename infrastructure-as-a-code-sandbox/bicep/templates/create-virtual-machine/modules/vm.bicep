@@ -109,7 +109,7 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(
     ]
     enableIPForwarding: false
   }
-  //tags: tags
+  tags: tags
   dependsOn: []
 }]
 
@@ -132,7 +132,7 @@ resource domainName 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = 
       Password: domainJoinUserPassword
     }
   }
-  //tags: tags
+  tags: tags
   dependsOn: [
     virtualmachine
   ]

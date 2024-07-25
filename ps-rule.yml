@@ -1,3 +1,4 @@
+# Invoke-PSRule -InputPath 'path/to/bicep/files' -Module 'PSRule.Rules.Azure' -As Summary
 requires:
   # Require a minimum of PSRule for Azure v1.12.2
   PSRule.Rules.Azure: ">=1.12.2"
@@ -15,10 +16,11 @@ input:
     - '**/*.json'
        
     # Include deployments.
-    - '!**/templates/*.bicepparam'
-    - '!**/templates/deploy.bicep'
+    # - '!**/templates/*.bicepparam'
+    # - '!**/templates/deploy.bicep'
     - '!**/templates/*.tests.bicep'
-   
+execution:
+  notProcessedWarning: false  
 
 configuration:
   # Enable automatic expansion of Azure parameter files.

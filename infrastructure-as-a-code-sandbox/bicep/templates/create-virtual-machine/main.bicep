@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // VM parameters
 ////////////////////////////////////////////////////////////////////////////////
-@description('Enter the department. i.e. fosa')
+@description('Enter the department. i.e. IT')
 param dept string
 @allowed([
   'prod'
@@ -11,6 +11,12 @@ param dept string
 param env string
 @description('Enter the virtual machine name.')
 param vmName string
+@allowed([
+  'p'
+  'd'
+  't'
+])
+param suffix string
 @description('Enter the domain.')
 param domainFQDN string
 @description('Enter the admin account username.')
@@ -47,6 +53,7 @@ module azVirtualMachine './modules/vm.bicep' = {
   name: 'azVirtualMachine'
   params: {
     vmName: vmName
+    suffix: suffix
     domainFQDN: domainFQDN
     domainJoinUserName: domainJoinUserName
     domainJoinUserPassword: domainJoinUserPassword
@@ -60,5 +67,9 @@ module azVirtualMachine './modules/vm.bicep' = {
     vmSize: vmSize
     vNetName: vnetName
     vNetResourceGroup: vNetRG
+    tags: {
+      dept: dept
+      env: env
+    }
   }
 }

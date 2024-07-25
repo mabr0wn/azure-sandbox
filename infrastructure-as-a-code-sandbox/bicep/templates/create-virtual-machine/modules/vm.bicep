@@ -3,7 +3,7 @@ param vmUserName string
 @secure()
 param vmPassword string
 param vmName string
-
+param suffix string
 param virtualMachineCount int
 param vmSize string
 param OS string
@@ -14,7 +14,6 @@ param SubnetName string
 param domainFQDN string
 param domainJoinUserName string
 param ouPath string
-
 @secure()
 param domainJoinUserPassword string
 
@@ -35,10 +34,16 @@ var operatingSystemValues = {
     SkuValue: '2022-Datacenter'
   }
 }
+
+@sys.description('Tags to apply to the resource.')
+param tags object = resourceGroup().tags
+
 var subnetRef = resourceId(vNetResourceGroup, 'Microsoft.Network/virtualNetworks/subnets', vNetName, SubnetName)
+var uniqueStringSuffix = uniqueString(resourceGroup().id)
+
 
 resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i in range(0, virtualMachineCount): {
-  name: '${vmName}${i + 1}p'
+  name: '${vmName}${i + 1}${suffix}'
   location: location
   properties: {
     hardwareProfile: {
@@ -52,7 +57,7 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
         version: 'latest'
       }
       osDisk: {
-        name: '${vmName}_OsDisk-${i + 1}'
+        name: '${vmName}_OsDisk-${uniqueStringSuffix}-${i + 1}'
         createOption: 'FromImage'
         managedDisk: {
           storageAccountType: 'StandardSSD_LRS'
@@ -61,10 +66,8 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
       }
     }
     osProfile: {
-      computerName: '${vmName}${i + 1}p'
-      adminUsername: vmUserName
-      // will use this to implement salt stack
-      //customData: base64('some custom string')
+      computerName: '${vmName}${i + 1}${suffix}'
+      adminUsername: vmUserName    
       windowsConfiguration: {
         provisionVMAgent: true
       }
@@ -73,7 +76,7 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
     networkProfile: {
       networkInterfaces: [
         {
-          id: resourceId('Microsoft.Network/networkInterfaces', '${vmName}${i + 1}p-NIC1')
+          id: resourceId('Microsoft.Network/networkInterfaces', '${vmName}${i + 1}${suffix}-${uniqueStringSuffix}')
         }
       ]
     }
@@ -83,13 +86,14 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
       }
     }
   }
+  tags: tags
   dependsOn: [    
     nic
   ]
 }]
 
 resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(0, virtualMachineCount): {
-  name: '${vmName}${i + 1}p-NIC1'
+  name: '${vmName}${i + 1}${suffix}-${uniqueStringSuffix}'
   location: location
   properties: {
     ipConfigurations: [
@@ -110,7 +114,7 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(
 }]
 
 resource domainName 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): {
-  name: toLower('${vmName}${i + 1}p/joindomain')
+  name: toLower('${vmName}${i + 1}${suffix}/joindomain')
   location: location
   properties: {
     publisher: 'Microsoft.Compute'

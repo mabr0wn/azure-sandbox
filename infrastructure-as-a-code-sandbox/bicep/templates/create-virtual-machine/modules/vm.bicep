@@ -140,6 +140,8 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   kind: 'AzurePowerShell'
   properties: {
     azPowerShellVersion: '3.0' // Specify the desired Azure PowerShell version
+    // can load custom script content or the triple backticks (```) to include the content of the script directly within the Bicep template.
+    // scriptContent: loadTextContent('customScript.ps1')
     scriptContent: '''
       # PowerShell script content here
       Write-Output "Starting custom PowerShell script execution..."

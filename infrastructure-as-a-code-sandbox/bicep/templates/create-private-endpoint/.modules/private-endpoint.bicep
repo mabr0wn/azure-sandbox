@@ -40,7 +40,7 @@ param subnetId string
 param groupId string
 
 // Storage Account
-module storageAccount '../modules/storage.bicep' = {
+module storageAccount '../../create-storage-account/.modules/storage.bicep' = {
   name: storageAccountName
   params:{
     name: storageAccountName
@@ -54,7 +54,7 @@ module storageAccount '../modules/storage.bicep' = {
 
 // Blob Service
 @sys.description('Configure blob services for the Storage Account.')
-module blobService '../../create-blob-service/modules/blob-service.bicep' = {
+module blobService '../../create-blob-service/.modules/blob-service.bicep' = {
   name: blobName
   params: {
     blobname: blobName

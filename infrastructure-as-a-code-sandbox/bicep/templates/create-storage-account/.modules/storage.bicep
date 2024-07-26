@@ -124,7 +124,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
       keySource: 'Microsoft.Storage'
     }
     accessTier: 'Hot'
-    largeFileSharesState: largeFileSharesState
+    largeFileSharesState: largeFileSharesState // Large file shares support up to 100 TiB.
     allowBlobPublicAccess: allowBlobPublicAccess
     allowSharedKeyAccess: allowSharedKeyAccess
     defaultToOAuthAuthentication: allowSharedKeyAccess ? true : defaultToOAuthAuthentication

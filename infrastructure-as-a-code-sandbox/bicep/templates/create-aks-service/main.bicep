@@ -46,7 +46,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2020-08-01' = {
   } 
 }
 
-module aks 'modules/aks-cluster.bicep' = {
+module aks '.modules/aks-cluster.bicep' = {
   name: 'AksCluster'
   
   params: {

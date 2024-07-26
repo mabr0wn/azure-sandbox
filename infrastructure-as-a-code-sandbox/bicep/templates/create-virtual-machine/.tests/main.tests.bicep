@@ -37,7 +37,7 @@ param subnetName string = 'testSubnetName'
 param vnetName string = 'testVnetName'
 param vNetRG string = 'testRgName'
 
-module testVM '../modules/vm.bicep' = {
+module testVM '../.modules/vm.bicep' = {
   name: 'testVM'
   params: {
     vmName: testVmName

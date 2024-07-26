@@ -7,7 +7,7 @@ param storageSKU string
 @description('Enter the SKU.')
 param uniqueStorageName string
 
-module azStg './modules/storage.bicep' = {
+module azStg './.modules/storage.bicep' = {
   name: uniqueStorageName
   params:{
     name: storagePrefix

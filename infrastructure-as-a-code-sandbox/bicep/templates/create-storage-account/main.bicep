@@ -10,7 +10,7 @@ param uniqueStorageName string
 module azStg './modules/storage.bicep' = {
   name: uniqueStorageName
   params:{
-    storagePrefix: storagePrefix
+    name: storagePrefix
     storageSKU: storageSKU
     location: location
   }

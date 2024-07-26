@@ -3,7 +3,7 @@ Login-AzAccount
 
 Get-AzSubscription
 
-Set-AzContext -SubscriptionId "77ab2927-7bf2-4427-bb1d-05ce374d92e1"
+Set-AzContext -SubscriptionId "00000000-0000-0000-0000-000000000000"
 
 # Variables for common values
 $location = 'eastus';
@@ -125,7 +125,7 @@ $vmConfig = @{
 $newVM1
 
 $tag = @{
-    owner='Matt Brown'; lab_vm='windows server'
+    owner='Owner'; lab_vm='windows server'
 }
 
 New-AzTag -Tag $tag -ResourceId $newVM1.Id -Verbose

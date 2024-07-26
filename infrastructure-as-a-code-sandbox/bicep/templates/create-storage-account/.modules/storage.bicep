@@ -77,6 +77,33 @@ var largeFileSharesState = configureLargeFileShares ? 'Enabled' : 'Disabled'
 var isFileStorage = storageKind == 'FileStorage'
 var usePrivateEndpoint = !empty(subnetId)
 
+@metadata({
+  example: {
+    enabled: true
+    name: 'RULE_NAME'
+    type: 'Lifecycle'
+    definition: {
+      actions: {
+        baseBlob: {
+          delete: {
+            daysAfterModificationGreaterThan: 7
+          }
+        }
+      }
+      filters: {
+        blobTypes: [
+          'blockBlob'
+        ]
+        prefixMatch: [
+          'logs/'
+        ]
+      }
+    }
+  }
+})
+@sys.description('An array of lifecycle management policies for the Storage Account.')
+param lifecycleRules object[] = []
+
 // Configure tags
 var allTags = union(resourceGroup().tags, tags)
 
@@ -134,12 +161,17 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   tags: allTags
 }
 
+@sys.description('Configure policies for managing blob lifecycle for the Storage Account.')
+resource managementPolicies 'Microsoft.Storage/storageAccounts/managementPolicies@2023-01-01' = if (!empty(lifecycleRules)) {
+  parent: storageAccount
+  name: 'default'
+  properties: {
+    policy: {
+      rules: lifecycleRules
+    }
+  }
+}
 
-// @sys.description('A unique identifier for the Storage Account.')
-// output id string = storageAccount.id
-
-// @sys.description('The name of the Storage Account.')
-// output storageAccountName string = storageAccountName
 @sys.description('A unique identifier for the Storage Account.')
 output id string = storageAccount.id
 

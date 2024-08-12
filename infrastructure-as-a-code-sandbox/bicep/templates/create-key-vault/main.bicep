@@ -6,6 +6,7 @@ param workspaceId string
 param kvname string
 @description('Configures the audit logs name to deploy the Azure resources.')
 param name string
+param workspaceName string
 
 module kv_required_params './.modules/keyvault.bicep' = {
   name: 'kv_required_params'
@@ -15,6 +16,12 @@ module kv_required_params './.modules/keyvault.bicep' = {
     tags: {
       env: 'prod'
     }
+  }
+}
+module log_analytic_workspace '../create-log-analytics-workspace/.modules/log-analytics-workspace.bicep' = {
+  name: 'log_analytic_workspace'
+  params: {
+    name: workspaceName
   }
 }
 
@@ -29,4 +36,7 @@ module audit_logs './.modules/keyvault.bicep' = {
     }
     workspaceId: workspaceId
   }
+  dependsOn: [
+    log_analytic_workspace
+  ]
 }

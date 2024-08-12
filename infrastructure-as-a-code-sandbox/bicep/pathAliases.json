@@ -1,0 +1,6 @@
+{
+    "@deploymentScript/*": "create-deployment-script/.modules/*",
+    "@storageAccount/*": "create-storage-account/.modules/*",
+    "@blobService/*": "create-blob-service/.modules/*",
+  }
+  

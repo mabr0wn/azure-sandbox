@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load the path aliases configuration
-const aliasConfig = JSON.parse(fs.readFileSync('pathAliases.json', 'utf-8'));
+const aliasConfig = JSON.parse(fs.readFileSync('../pathAliases.json', 'utf-8'));
 
 // Function to resolve an alias to its actual path
 function resolvePath(alias) {

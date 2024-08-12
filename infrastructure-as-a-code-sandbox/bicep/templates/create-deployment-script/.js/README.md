@@ -10,12 +10,10 @@ Use a JSON or YAML file to define your path aliases. This configuration will act
 
 ```json
 {
-  "@core/*": "modules/core/*",
-  "@graphql/*": "modules/graphql/*",
-  "@store/*": "modules/store/*",
-  "@environments/*": "modules/environments/*",
-  "@shared/*": "modules/shared/*"
-}
+    "@deploymentScript/*": "create-deployment-script/.modules/*",
+    "@storageAccount/*": "create-storage-account/.modules/*",
+    "@blobService/*": "create-blob-service/.modules/*",
+  }
 ```
 
 ### 2. **Write a Script to Resolve Aliases**
@@ -43,7 +41,7 @@ function resolvePath(alias) {
 }
 
 // Example usage
-const alias = '@core/myCoreModule.bicep';
+const alias = '@deploymentScript/myModule.bicep';
 const resolvedPath = resolvePath(alias);
 console.log(`Resolved path: ${resolvedPath}`);
 ```
@@ -60,8 +58,8 @@ const resolveAliases = require('./resolveAliases');
 
 // Example Bicep template with aliases
 const bicepTemplate = `
-module coreModule '${resolveAliases('@core/myCoreModule.bicep')}' = {
-  name: 'coreModule'
+module deploymentScriptModule '${resolveAliases('@deploymentScript/myModule.bicep')}' = {
+  name: 'deploymentScriptModule'
   scope: resourceGroup()
   params: {
     // parameters

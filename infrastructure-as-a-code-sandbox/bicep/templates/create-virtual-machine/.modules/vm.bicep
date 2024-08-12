@@ -1,5 +1,4 @@
 param vmUserName string
-//param tags object
 @secure()
 param vmPassword string
 param vmName string
@@ -16,7 +15,6 @@ param domainJoinUserName string
 param ouPath string
 @secure()
 param domainJoinUserPassword string
-// Load the script content from a local file
 param scriptContent string
 
 var operatingSystemValues = {

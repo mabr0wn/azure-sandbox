@@ -45,6 +45,7 @@ param vmPassword string
 param subnetName string
 param vnetName string
 param vNetRG string
+param scriptContent string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Deployment vm start
@@ -67,6 +68,7 @@ module azVirtualMachine './.modules/vm.bicep' = {
     vmSize: vmSize
     vNetName: vnetName
     vNetResourceGroup: vNetRG
+    scriptContent: scriptContent
     tags: {
       dept: dept
       env: env

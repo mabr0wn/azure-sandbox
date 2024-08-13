@@ -1,6 +1,7 @@
 param vmUserName string
 @secure()
 param vmPassword string
+param vmSecretName string
 param vmName string
 param suffix string
 param virtualMachineCount int
@@ -15,6 +16,7 @@ param domainJoinUserName string
 param ouPath string
 @secure()
 param domainJoinUserPassword string
+param domainJoinSecretName string
 param scriptContent string
 @description('Existing keyvault name in Azure.')
 param kvname string
@@ -120,7 +122,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
 
 resource vmPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
   parent:keyVault
-  name: 'vmPasswordSecret'
+  name: '${keyVault.name}${vmSecretName}'
   properties: {
     value: vmPassword
   }
@@ -128,7 +130,7 @@ resource vmPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
 
 resource domainJoinUserPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
   parent: keyVault
-  name: 'domainJoinUserPasswordSecret'
+  name: '${keyVault.name}${domainJoinSecretName}'
   properties: {
     value: domainJoinUserPassword
   }

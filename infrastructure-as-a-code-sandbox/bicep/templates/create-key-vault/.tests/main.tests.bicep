@@ -5,7 +5,7 @@
 param location string = resourceGroup().location
 
 // Test with only required parameters
-module test_required_params '../modules/keyvault.bicep' = {
+module test_required_params '../.modules/keyvault.bicep' = {
   name: 'test_required_params'
   params: {
     name: 'kvtest001'
@@ -17,7 +17,7 @@ module test_required_params '../modules/keyvault.bicep' = {
 }
 
 // Test with Log Analytics workspace configure for auditing
-module test_with_audit_logs '../modules/keyvault.bicep' = {
+module test_with_audit_logs '../.modules/keyvault.bicep' = {
   name: 'test_with_audit_logs'
   params: {
     name: 'kvtest002'

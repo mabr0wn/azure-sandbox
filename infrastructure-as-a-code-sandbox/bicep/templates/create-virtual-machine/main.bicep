@@ -24,6 +24,7 @@ param domainJoinUserName string
 @secure()
 @description('Enter the admin account password.')
 param domainJoinUserPassword string
+param domainJoinSecretName string
 @description('Enter the azure location.')
 param location string
 @allowed([
@@ -42,6 +43,7 @@ param vmSize string
 param vmUserName string
 @secure()
 param vmPassword string
+param vmSecretName string
 param subnetName string
 param vnetName string
 param vNetRG string
@@ -59,6 +61,7 @@ module azVirtualMachine './.modules/vm.bicep' = {
     domainFQDN: domainFQDN
     domainJoinUserName: domainJoinUserName
     domainJoinUserPassword: domainJoinUserPassword
+    domainJoinSecretName: domainJoinSecretName
     location: location
     OS: OS
     ouPath: ouPath
@@ -67,6 +70,7 @@ module azVirtualMachine './.modules/vm.bicep' = {
     kvname: kvname
     vmUserName: vmUserName
     vmPassword: vmPassword
+    vmSecretName: vmSecretName
     vmSize: vmSize
     vNetName: vnetName
     vNetResourceGroup: vNetRG

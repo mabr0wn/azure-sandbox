@@ -8,12 +8,32 @@ metadata version = '1.0.0'
 
 @sys.description('The name of the Key Vault.')
 param name string
+@metadata({
+  strongType: 'Microsoft.Network/virtualNetworks/subnets'
+})
+@sys.description('The subnet to connect a private endpoint.')
+param subnetId string = ''
 
 @metadata({
   strongType: 'location'
 })
 @sys.description('The Azure region to deploy to.')
 param location string = resourceGroup().location
+
+@allowed([
+  'Deny'
+  'Allow'
+])
+@sys.description('Deny or allow network traffic unless explicitly allowed.')
+param defaultFirewallAction string = 'Deny'
+
+@metadata({
+  example: [
+    'x.x.x.x'
+  ]
+})
+@sys.description('Firewall rules to permit specific IP addresses access to keyvault.')
+param firewallIPRules string[] = []
 
 @metadata({
   example: [
@@ -80,6 +100,8 @@ param workspaceId string = ''
 @sys.description('Tags to apply to the resource.')
 param tags object = resourceGroup().tags
 
+var usePrivateEndpoint = !empty(subnetId)
+
 @sys.description('Create or update a Key Vault.')
 resource vault 'Microsoft.KeyVault/vaults@2019-09-01' = {
   name: name
@@ -94,7 +116,13 @@ resource vault 'Microsoft.KeyVault/vaults@2019-09-01' = {
       name: 'standard'
       family: 'A'
     }
-    networkAcls: networkAcls
+    networkAcls: {
+      defaultAction: usePrivateEndpoint ? 'Deny' : defaultFirewallAction
+      bypass: 'AzureServices'
+      ipRules: [for item in firewallIPRules: {
+        value: item
+      }]
+    }
     enableSoftDelete: useSoftDelete
     enablePurgeProtection: usePurgeProtection
     softDeleteRetentionInDays: softDeleteDays

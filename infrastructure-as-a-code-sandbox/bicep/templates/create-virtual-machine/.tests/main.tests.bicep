@@ -33,9 +33,17 @@ param vmSize string = 'Standard_DS1_v2'
 param vmUserName string = 'testadmin'
 @secure()
 param vmPassword string
+@sys.description('Enter the azure subnet name.')
 param subnetName string = 'testSubnetName'
+@sys.description('Enter the azure vnet name.')
 param vnetName string = 'testVnetName'
+@sys.description('Enter the azure resource group name.')
 param vNetRG string = 'testRgName'
+@sys.description('Enter the file path for custom script.')
+param scriptContent string = './customScriptTest.ps1'
+@sys.description('Configures the key vault name to deploy the Azure resources.')
+param kvname string = 'kvtest001'
+
 
 module testVM '../.modules/vm.bicep' = {
   name: 'testVM'
@@ -50,11 +58,13 @@ module testVM '../.modules/vm.bicep' = {
     ouPath: ouPathTest
     SubnetName: subnetName
     virtualMachineCount: virtualMachineCount
+    kvname: kvname
     vmUserName: vmUserName
     vmPassword: vmPassword
     vmSize: vmSize
     vNetName: vnetName
     vNetResourceGroup: vNetRG
+    scriptContent: scriptContent
     tags: {
       dept: dept
       env: env

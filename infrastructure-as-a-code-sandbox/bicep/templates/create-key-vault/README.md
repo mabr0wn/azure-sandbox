@@ -212,6 +212,78 @@ Write-Host "Press [ENTER] to continue..."
 
 ---
 
+Here's a step-by-step guide to setting up Azure Key Vault and using `az keyvault secret` to store and retrieve secrets.
+
+### Step 1: Create an Azure Key Vault
+
+1. **Sign in to Azure CLI:**
+   ```bash
+   az login
+   ```
+   
+2. **Create a Resource Group (if you don't have one):**
+   ```bash
+   az group create --name MyResourceGroup --location eastus
+   ```
+   Replace `MyResourceGroup` with your desired resource group name and `eastus` with your preferred location.
+
+3. **Create the Key Vault:**
+   ```bash
+   az keyvault create --name MyKeyVault --resource-group MyResourceGroup --location eastus
+   ```
+   Replace `MyKeyVault` with your desired Key Vault name. The name must be globally unique.
+
+### Step 2: Set a Secret in the Key Vault
+
+1. **Add a secret to the Key Vault:**
+
+   <span style="color: yellow;"> ⚠️</span> <span style="color: red;">**Important!**</span>:
+   ```bash
+   az keyvault secret set --vault-name MyKeyVault --name MySecretName --value "MySecretValue"
+   ```
+   Replace `MySecretName` with the name of your secret and `"MySecretValue"` with the value you want to store.
+
+### Step 3: Retrieve a Secret from the Key Vault
+
+1. **Get the secret value:**
+   ```bash
+   az keyvault secret show --name MySecretName --vault-name MyKeyVault
+   ```
+   This command will return the secret value, but it's usually best to access it programmatically or store it securely.
+
+2. **Get the secret value directly (for use in scripts):**
+   ```bash
+   secret=$(az keyvault secret show --name MySecretName --vault-name MyKeyVault --query value -o tsv)
+   echo $secret
+   ```
+   This stores the secret value in the `secret` variable, which can be used in your scripts.
+
+### Step 4: Update or Delete a Secret
+
+1. **Update an existing secret:**
+   ```bash
+   az keyvault secret set --vault-name MyKeyVault --name MySecretName --value "NewSecretValue"
+   ```
+
+2. **Delete a secret:**
+   ```bash
+   az keyvault secret delete --name MySecretName --vault-name MyKeyVault
+   ```
+
+### Step 5: Manage Access to Key Vault
+
+1. **Assign a service principal access to Key Vault:**
+   ```bash
+   az keyvault set-policy --name MyKeyVault --spn <your-service-principal-id> --secret-permissions get list set delete
+   ```
+
+2. **Assign access to a user or application:**
+   ```bash
+   az keyvault set-policy --name MyKeyVault --upn <user-principal-name> --secret-permissions get list
+   ```
+
+That's it! You've set up an Azure Key Vault, stored secrets, and retrieved them using `az keyvault secret`.
+
 ## Next steps
 
 In this quickstart, you created a key vault and a key using a Bicep file, and validated the deployment. To learn more about Key Vault and Azure Resource Manager, see these articles.

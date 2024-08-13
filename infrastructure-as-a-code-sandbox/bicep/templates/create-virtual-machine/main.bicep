@@ -46,6 +46,7 @@ param subnetName string
 param vnetName string
 param vNetRG string
 param scriptContent string
+param kvname string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Deployment vm start
@@ -63,6 +64,7 @@ module azVirtualMachine './.modules/vm.bicep' = {
     ouPath: ouPath
     SubnetName: subnetName
     virtualMachineCount: virtualMachineCount
+    kvname: kvname
     vmUserName: vmUserName
     vmPassword: vmPassword
     vmSize: vmSize

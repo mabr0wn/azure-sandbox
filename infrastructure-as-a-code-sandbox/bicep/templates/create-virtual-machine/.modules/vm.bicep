@@ -16,6 +16,8 @@ param ouPath string
 @secure()
 param domainJoinUserPassword string
 param scriptContent string
+@description('Existing keyvault name in Azure.')
+param kvname string
 
 var operatingSystemValues = {
   Server2016: {
@@ -112,6 +114,25 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(
   dependsOn: []
 }]
 
+resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
+  name: kvname
+}
+
+resource vmPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
+  parent:keyVault
+  name: 'vmPasswordSecret'
+  properties: {
+    value: vmPassword
+  }
+}
+
+resource domainJoinUserPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
+  parent: keyVault
+  name: 'domainJoinUserPasswordSecret'
+  properties: {
+    value: domainJoinUserPassword
+  }
+}
 resource domainName 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): {
   name: toLower('${vmName}${i + 1}${suffix}/joindomain')
   location: location

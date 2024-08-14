@@ -20,6 +20,8 @@ param domainJoinSecretName string
 param scriptContent string
 @description('Existing keyvault name in Azure.')
 param kvname string
+param storageAccountName string
+param resourceGroupName string
 
 var operatingSystemValues = {
   Server2016: {
@@ -37,7 +39,28 @@ var operatingSystemValues = {
     OfferValue: 'WindowsServer'
     SkuValue: '2022-Datacenter'
   }
+  Ubuntu1804: {
+    PublisherValue: 'Canonical'
+    OfferValue: 'UbuntuServer'
+    SkuValue: '18.04-LTS'
+  }
+  Ubuntu2004: {
+    PublisherValue: 'Canonical'
+    OfferValue: 'UbuntuServer'
+    SkuValue: '20_04-lts'
+  }
+  CentOS7_9: {
+    PublisherValue: 'OpenLogic'
+    OfferValue: 'CentOS'
+    SkuValue: '7_9'
+  }
+  CentOS8_3: {
+    PublisherValue: 'OpenLogic'
+    OfferValue: 'CentOS'
+    SkuValue: '8_3'
+  }
 }
+
 
 @sys.description('Tags to apply to the resource.')
 param tags object = resourceGroup().tags
@@ -135,7 +158,7 @@ resource domainJoinUserPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07
     value: domainJoinUserPassword
   }
 }
-resource domainName 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): {
+resource windowsDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): if (contains(operatingSystemValues, 'Server')){
   name: toLower('${vmName}${i + 1}${suffix}/joindomain')
   location: location
   properties: {
@@ -160,6 +183,39 @@ resource domainName 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = 
   ]
 }]
 
+resource linuxDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): if (!(contains(operatingSystemValues, 'Ubuntu') || contains(operatingSystemValues, 'CentOS'))) {
+  name: toLower('${vmName}${i + 1}${suffix}/joindomain')
+  location: location
+  properties: {
+    publisher: 'Microsoft.Azure.Extensions'
+    type: 'CustomScript'
+    typeHandlerVersion: '2.1'
+    autoUpgradeMinorVersion: true
+    settings: {
+      fileUris: [
+        'https://<your-storage-account-name>.blob.core.windows.net/scripts/join-linux-domain.sh' // Update with the actual URI to your script
+      ]
+      commandToExecute: 'bash join-linux-domain.sh'
+    }
+    protectedSettings: {
+      storageAccountName: existingStorageAccount
+      storageAccountKey: 'Eby8vdM02xNOcq7uM0sPsp6ycUQpVzQ6NQ6k6lxKTUm6Nf6p6XKwWDFk2QO47tR4B3AyRtTkcX26K4pB5+O='
+      // Optionally pass domain credentials securely
+      fileUris: []
+    }
+  }
+  tags: tags
+  dependsOn: [
+    virtualmachine
+  ]
+}]
+
+resource existingStorageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' existing = {
+  name: storageAccountName
+  scope: resourceGroup(resourceGroupName)
+}
+
+
 module deploymentScript '../../create-deployment-script/.modules/externalScript.bicep' = {
   name: 'runPowerShellExternalScript'
   params: {
@@ -167,6 +223,6 @@ module deploymentScript '../../create-deployment-script/.modules/externalScript.
     scriptContentParam: scriptContent
   }
   dependsOn: [
-    domainName
+    windowsDomainJoin
   ]
 }

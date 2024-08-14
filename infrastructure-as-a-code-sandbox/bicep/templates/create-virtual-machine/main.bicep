@@ -31,6 +31,10 @@ param location string
   'Server2016'
   'Server2019'
   'Server2022'
+  'Ubuntu1804'
+  'Ubuntu2004'
+  'CentOS7_9'
+  'CentOS8_3'
 ])
 param OS string
 @description('Enter the OU path. i.e. OU=Departments,DC=ad,DC=contoso,DC=com')
@@ -49,6 +53,8 @@ param vnetName string
 param vNetRG string
 param scriptContent string
 param kvname string
+param storageAccountName string
+param resourceGroupName string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Deployment vm start
@@ -75,6 +81,8 @@ module azVirtualMachine './.modules/vm.bicep' = {
     vNetName: vnetName
     vNetResourceGroup: vNetRG
     scriptContent: scriptContent
+    resourceGroupName: resourceGroupName
+    storageAccountName: storageAccountName
     tags: {
       dept: dept
       env: env

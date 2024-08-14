@@ -16,6 +16,7 @@ param domainJoinUserName string
 @secure()
 @sys.description('Enter the admin account password.')
 param domainJoinUserPassword string
+param domainJoinSecretName string = 'domainSecretValue'
 @sys.description('Enter the azure location.')
 param location string
 @allowed([
@@ -33,6 +34,7 @@ param vmSize string = 'Standard_DS1_v2'
 param vmUserName string = 'testadmin'
 @secure()
 param vmPassword string
+param vmSecretName string = 'vmSecretValue'
 @sys.description('Enter the azure subnet name.')
 param subnetName string = 'testSubnetName'
 @sys.description('Enter the azure vnet name.')
@@ -43,6 +45,8 @@ param vNetRG string = 'testRgName'
 param scriptContent string = './customScriptTest.ps1'
 @sys.description('Configures the key vault name to deploy the Azure resources.')
 param kvname string = 'kvtest001'
+param storageAccountName string = 'teststorageacct123'
+param resourceGroupName string = 'testresourcegroup123'
 
 
 module testVM '../.modules/vm.bicep' = {
@@ -53,6 +57,7 @@ module testVM '../.modules/vm.bicep' = {
     domainFQDN: testFQDN
     domainJoinUserName: domainJoinUserName
     domainJoinUserPassword: domainJoinUserPassword
+    domainJoinSecretName: domainJoinSecretName
     location: location
     OS: OS
     ouPath: ouPathTest
@@ -61,10 +66,13 @@ module testVM '../.modules/vm.bicep' = {
     kvname: kvname
     vmUserName: vmUserName
     vmPassword: vmPassword
+    vmSecretName: vmSecretName
     vmSize: vmSize
     vNetName: vnetName
     vNetResourceGroup: vNetRG
     scriptContent: scriptContent
+    storageAccountName: storageAccountName
+    resourceGroupName: resourceGroupName
     tags: {
       dept: dept
       env: env

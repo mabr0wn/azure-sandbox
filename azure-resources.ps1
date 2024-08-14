@@ -1,6 +1,6 @@
 # A script to fetch user sign-in data from the Microsoft Graph and export it to CSV file.  
 #  
-CLS  
+#  
 # Define the values applicable for the application used to connect to the Graph ( **ensure to change the below 3 values of AppId or Client ID, Tenant ID and Client Secret for your application of your tenant**)  
 $AppId = ""  
 $TenantId = ""  
@@ -52,7 +52,7 @@ Foreach ($User in $SignInData.Value) {
 # Do we have extra data to fetch?  
 $NextLink = $SignInData.'@Odata.NextLink'  
   
-While ($NextLink -ne $Null) { # We do... so process them.  
+While ($Null -ne $NextLink) { # We do... so process them.  
    Write-Host "Still processing..."  
    $SignInData = Invoke-WebRequest -Method GET -Uri $NextLink -ContentType "application/json" -Headers $Headers  
    $SignInData = $SignInData | ConvertFrom-JSon  

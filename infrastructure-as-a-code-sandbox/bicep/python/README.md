@@ -53,5 +53,5 @@ if __name__ == "__main__":
 ```bash
 python test_bicep.py
 ```
-
+TEST
 The script will output whether the Bicep file is valid or if there are any issues that need to be addressed.

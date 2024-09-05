@@ -14,6 +14,7 @@ param SubnetName string
 param domainFQDN string
 param domainJoinUserName string
 param ouPath string
+param storageAccountType string
 @secure()
 param domainJoinUserPassword string
 param domainJoinSecretName string
@@ -86,7 +87,7 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
         name: '${vmName}_OsDisk-${uniqueStringSuffix}-${i + 1}'
         createOption: 'FromImage'
         managedDisk: {
-          storageAccountType: 'StandardSSD_LRS'
+          storageAccountType: storageAccountType
         }
         caching: 'ReadWrite'
       }

@@ -55,6 +55,18 @@ param scriptContent string
 param kvname string
 param storageAccountName string
 param resourceGroupName string
+@allowed([
+'Premium_LRS'
+'Premium_ZRS'
+'Standard_GRS'
+'Standard_GZRS'
+'Standard_LRS'
+'Standard_RAGRS'
+'Standard_RAGZRS'
+'Standard_ZRS'
+'StandardSSD_LRS'
+])
+param storageAccountType string
 
 ////////////////////////////////////////////////////////////////////////////////
 // Deployment vm start
@@ -80,6 +92,7 @@ module azVirtualMachine './.modules/vm.bicep' = {
     vmSize: vmSize
     vNetName: vnetName
     vNetResourceGroup: vNetRG
+    storageAccountType: storageAccountType
     scriptContent: scriptContent
     resourceGroupName: resourceGroupName
     storageAccountName: storageAccountName

@@ -93,11 +93,9 @@ $submitButton.Location = New-Object Drawing.Point(100, 250)
 $submitButton.Add_Click({
     $vmName = $vmNameTextBox.Text
     $resourceGroup = $rgComboBox.SelectedItem
-    $username = $usernameTextBox.Text
-    $password = $passwordTextBox.Text
     $bicepFilePath = $bicepFilePathTextBox.Text
 
-    if ([string]::IsNullOrWhiteSpace($vmName) -or [string]::IsNullOrWhiteSpace($resourceGroup) -or [string]::IsNullOrWhiteSpace($username) -or [string]::IsNullOrWhiteSpace($password) -or [string]::IsNullOrWhiteSpace($bicepFilePath)) {
+    if ([string]::IsNullOrWhiteSpace($vmName) -or [string]::IsNullOrWhiteSpace($resourceGroup) -or [string]::IsNullOrWhiteSpace($bicepFilePath)) {
         [System.Windows.Forms.MessageBox]::Show('Please fill in all fields!')
         return
     }

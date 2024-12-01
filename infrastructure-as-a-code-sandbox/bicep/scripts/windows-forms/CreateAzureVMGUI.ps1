@@ -102,6 +102,8 @@ $submitButton.Add_Click({
 
     # Call the Azure CLI or use a script to deploy the Bicep template with the provided parameters
     $bicepCommand = "az deployment group create --resource-group $resourceGroup --template-file ../../templates/create-virtual-machine/main.bicep --parameters @$bicepFilePath vmName='$vmName'"
+
+    
     Invoke-Expression $bicepCommand
     [System.Windows.Forms.MessageBox]::Show('VM deployment started!')
     $form.Close()

@@ -4,11 +4,11 @@ Add-Type -AssemblyName System.Drawing
 # Create the form
 $form = New-Object Windows.Forms.Form
 $form.Text = 'Create Azure VM'
-$form.Size = New-Object Drawing.Size(600, 700)
+$form.Size = New-Object Drawing.Size(675, 700)
 
-# VM Name Section
+# VM Name Section (Left)
 $vmNameLabel = New-Object Windows.Forms.Label
-$vmNameLabel.Text = "VM Name"
+$vmNameLabel.Text = "VM Name*:"
 $vmNameLabel.Location = New-Object Drawing.Point(10, 60)
 $vmNameLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($vmNameLabel)
@@ -18,9 +18,9 @@ $vmNameTextBox.Location = New-Object Drawing.Point(120, 60)
 $vmNameTextBox.Size = New-Object Drawing.Size(200, 30)
 $form.Controls.Add($vmNameTextBox)
 
-# Resource Group Section
+# Resource Group Section (Left)
 $rgLabel = New-Object Windows.Forms.Label
-$rgLabel.Text = "Resource Group"
+$rgLabel.Text = "Resource Group*:"
 $rgLabel.Location = New-Object Drawing.Point(10, 100)
 $rgLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($rgLabel)
@@ -31,9 +31,9 @@ $rgComboBox.Size = New-Object Drawing.Size(200, 30)
 $rgComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($rgComboBox)
 
-# VNet Section
+# VNet Section (Left)
 $vnetLabel = New-Object Windows.Forms.Label
-$vnetLabel.Text = "Vnet Name"
+$vnetLabel.Text = "Vnet Name*:"
 $vnetLabel.Location = New-Object Drawing.Point(10, 140)
 $vnetLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($vnetLabel)
@@ -44,9 +44,9 @@ $vnetComboBox.Size = New-Object Drawing.Size(200, 30)
 $vnetComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($vnetComboBox)
 
-# Subnet Section
+# Subnet Section (Left)
 $snetLabel = New-Object Windows.Forms.Label
-$snetLabel.Text = "Subnet Name"
+$snetLabel.Text = "Subnet Name*:"
 $snetLabel.Location = New-Object Drawing.Point(10, 180)
 $snetLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($snetLabel)
@@ -57,9 +57,9 @@ $snetComboBox.Size = New-Object Drawing.Size(200, 30)
 $snetComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($snetComboBox)
 
-# Storage Account Section
+# Storage Account Section (Left)
 $storageLabel = New-Object Windows.Forms.Label
-$storageLabel.Text = "Storage Group"
+$storageLabel.Text = "Storage Group*:"
 $storageLabel.Location = New-Object Drawing.Point(10, 220)
 $storageLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($storageLabel)
@@ -70,10 +70,108 @@ $storageComboBox.Size = New-Object Drawing.Size(200, 30)
 $storageComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($storageComboBox)
 
+# Adding 5 more boxes to the right side (shift the X position to the right)
+
+# IP Label Section (Right)
+$ipLabelRight = New-Object Windows.Forms.Label
+$ipLabelRight.Text = "IP Address*:"
+$ipLabelRight.Location = New-Object Drawing.Point(330, 60)
+$ipLabelRight.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($ipLabelRight)
+
+# IP Textbox Section (Right)
+$ipTextBoxRight = New-Object Windows.Forms.TextBox
+$ipTextBoxRight.Location = New-Object Drawing.Point(440, 60)
+$ipTextBoxRight.Size = New-Object Drawing.Size(200, 30)
+
+$form.Controls.Add($ipTextBoxRight)
+
+
+# VM Size Section (Right)
+$vmSizeLabelRight = New-Object Windows.Forms.Label
+$vmSizeLabelRight.Text = "VM Size*:"
+$vmSizeLabelRight.Location = New-Object Drawing.Point(330, 100)
+$vmSizeLabelRight.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($vmSizeLabelRight)
+
+$vmSizeComboBoxRight = New-Object Windows.Forms.ComboBox
+$vmSizeComboBoxRight.Location = New-Object Drawing.Point(440, 100)
+$vmSizeComboBoxRight.Size = New-Object Drawing.Size(200, 30)
+$vmSizeComboBoxRight.DropDownStyle = 'DropDownList'
+$form.Controls.Add($vmSizeComboBoxRight)
+
+$vmSizeComboBoxRight.Items.Add('Standard_DS1_v2')
+$vmSizeComboBoxRight.Items.Add('Standard_DS2_v2')
+$vmSizeComboBoxRight.Items.Add('Standard_DS3_v2')
+$vmSizeComboBoxRight.Items.Add('Standard_DS4_v2')
+$vmSizeComboBoxRight.Items.Add('Standard_D1_v2')
+$vmSizeComboBoxRight.Items.Add('Standard_D2_v2')
+$vmSizeComboBoxRight.Items.Add('Standard_D3_v2')
+$vmSizeComboBoxRight.Items.Add('Standard_D4_v2')
+$vmSizeComboBoxRight.Items.Add('Standard_D5_v2')
+$vmSizeComboBoxRight.Items.Add('Standard_F1')
+
+# VNet Section (Right)
+$storageTypeLabelRight = New-Object Windows.Forms.Label
+$storageTypeLabelRight.Text = "Storage Type*:"
+$storageTypeLabelRight.Location = New-Object Drawing.Point(330, 140)
+$storageTypeLabelRight.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($storageTypeLabelRight)
+
+$storageTypeComboBoxRight = New-Object Windows.Forms.ComboBox
+$storageTypeComboBoxRight.Location = New-Object Drawing.Point(440, 140)
+$storageTypeComboBoxRight.Size = New-Object Drawing.Size(200, 30)
+$storageTypeComboBoxRight.DropDownStyle = 'DropDownList'
+
+# Add OS options to the ComboBox
+$storageTypeComboBoxRight.Items.Add('Premium_LRS')
+$storageTypeComboBoxRight.Items.Add('Premium_ZRS')
+$storageTypeComboBoxRight.Items.Add('Standard_GRS')
+$storageTypeComboBoxRight.Items.Add('Standard_GZRS')
+$storageTypeComboBoxRight.Items.Add('Standard_LRS')
+$storageTypeComboBoxRight.Items.Add('Standard_RAGRS')
+$storageTypeComboBoxRight.Items.Add('Standard_RAGZRS')
+$storageTypeComboBoxRight.Items.Add('Standard_ZRS')
+$storageTypeComboBoxRight.Items.Add('StandardSSD_LRS')
+
+$form.Controls.Add($storageTypeComboBoxRight)
+
+# Subnet Section (Right)
+$osLabelRight = New-Object Windows.Forms.Label
+$osLabelRight.Text = "OS Spec*:"
+$osLabelRight.Location = New-Object Drawing.Point(330, 180)
+$osLabelRight.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($osLabelRight)
+
+$osComboBoxRight = New-Object Windows.Forms.ComboBox
+$osComboBoxRight.Location = New-Object Drawing.Point(440, 180)
+$osComboBoxRight.Size = New-Object Drawing.Size(200, 30)
+$osComboBoxRight.DropDownStyle = 'DropDownList'
+$form.Controls.Add($osComboBoxRight)
+
+# Add OS options to the ComboBox
+$osComboBoxRight.Items.Add('Server2016')
+$osComboBoxRight.Items.Add('Server2019')
+$osComboBoxRight.Items.Add('Server2022')
+$osComboBoxRight.Items.Add('Ubuntu1804')
+
+# Extra Section (Right)
+#$labelRight = New-Object Windows.Forms.Label
+#$labelRight.Text = "Storage Group (Right)"
+#$labelRight.Location = New-Object Drawing.Point(330, 220)
+#$labelRight.Size = New-Object Drawing.Size(100, 30)
+#$form.Controls.Add($labelRight)
+
+#$comboBoxRight = New-Object Windows.Forms.ComboBox
+#$comboBoxRight.Location = New-Object Drawing.Point(440, 220)
+#$comboBoxRight.Size = New-Object Drawing.Size(200, 30)
+#$comboBoxRight.DropDownStyle = 'DropDownList'
+#$form.Controls.Add($comboBoxRight)
+
 # Connect to Azure Button
 $connectButton = New-Object Windows.Forms.Button
 $connectButton.Text = "Connect to Azure"
-$connectButton.Location = New-Object Drawing.Point(10, 10)
+$connectButton.Location = New-Object Drawing.Point(50, 10)
 $connectButton.Size = New-Object Drawing.Size(550, 30)
 $connectButton.Add_Click({
    # Login to Azure using Azure CLI
@@ -147,7 +245,7 @@ $rgComboBox.add_SelectedIndexChanged({
 
 # Bicep Param File label and textbox
 $bicepFileLabel = New-Object Windows.Forms.Label
-$bicepFileLabel.Text = "Bicep Param File"
+$bicepFileLabel.Text = "Bicep Param File*:"
 $bicepFileLabel.Location = New-Object Drawing.Point(10, 260)
 $form.Controls.Add($bicepFileLabel)
 
@@ -174,14 +272,14 @@ $form.Controls.Add($fileBrowseButton)
 
 # Active Directory OU Selection
 $ouLabel = New-Object Windows.Forms.Label
-$ouLabel.Text = "Active Directory OU"
-$ouLabel.Location = New-Object Drawing.Point(10, 300)
-$ouLabel.Size = New-Object Drawing.Size(150, 30)
+$ouLabel.Text = "OU*:"
+$ouLabel.Location = New-Object Drawing.Point(10, 310)
+$ouLabel.Size = New-Object Drawing.Size(30, 30)
 $form.Controls.Add($ouLabel)
 
 $selectedOUTextBox = New-Object Windows.Forms.TextBox
-$selectedOUTextBox.Location = New-Object Drawing.Point(10, 340)
-$selectedOUTextBox.Size = New-Object Drawing.Size(550, 30)
+$selectedOUTextBox.Location = New-Object Drawing.Point(120, 310)
+$selectedOUTextBox.Size = New-Object Drawing.Size(350, 30)
 $selectedOUTextBox.ReadOnly = $true
 $form.Controls.Add($selectedOUTextBox)
 
@@ -274,4 +372,4 @@ $form.Controls.Add($submitButton)
 Load-OUs
 
 # Initialize the form
-$form.ShowDialog()
+$form.ShowDialog() 

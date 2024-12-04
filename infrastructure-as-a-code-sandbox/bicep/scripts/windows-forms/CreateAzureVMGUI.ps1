@@ -4,22 +4,7 @@ Add-Type -AssemblyName System.Drawing
 # Create the form
 $form = New-Object Windows.Forms.Form
 $form.Text = 'Create Azure VM'
-$form.Size = New-Object Drawing.Size(600, 900) # Adjusted form height
-
-# Connect to Azure Button
-$connectButton = New-Object Windows.Forms.Button
-$connectButton.Text = "Connect to Azure"
-$connectButton.Location = New-Object Drawing.Point(10, 10)
-$connectButton.Size = New-Object Drawing.Size(550, 30)
-$connectButton.Add_Click({
-    try {
-        Connect-AzAccount -ErrorAction Stop
-        [System.Windows.Forms.MessageBox]::Show('Successfully connected to Azure!')
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Error connecting to Azure: $_")
-    }
-})
-$form.Controls.Add($connectButton)
+$form.Size = New-Object Drawing.Size(600, 700)
 
 # VM Name Section
 $vmNameLabel = New-Object Windows.Forms.Label
@@ -72,6 +57,65 @@ $storageComboBox.Size = New-Object Drawing.Size(200, 30)
 $storageComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($storageComboBox)
 
+# Connect to Azure Button
+$connectButton = New-Object Windows.Forms.Button
+$connectButton.Text = "Connect to Azure"
+$connectButton.Location = New-Object Drawing.Point(10, 10)
+$connectButton.Size = New-Object Drawing.Size(550, 30)
+$connectButton.Add_Click({
+   # Login to Azure using Azure CLI
+   $loginResult = az login
+   if ($loginResult) {
+       [System.Windows.Forms.MessageBox]::Show("Connected to Azure.")
+       
+       # Fetch Resource Groups
+       $rgList = az group list --query "[].name" -o tsv
+       
+       # Populate the dropdown with resource groups
+       $rgComboBox.Items.Clear()
+       $rgList | ForEach-Object { $rgComboBox.Items.Add($_) }
+       
+       if ($rgComboBox.Items.Count -eq 0) {
+           [System.Windows.Forms.MessageBox]::Show("No resource groups found!")
+       } else {
+           $rgComboBox.SelectedIndex = 0
+       }
+   } else {
+       [System.Windows.Forms.MessageBox]::Show("Failed to connect to Azure.")
+   }
+})
+$form.Controls.Add($connectButton)
+
+# Fetch VNets and Storage Accounts when a Resource Group is selected
+$rgComboBox.add_SelectedIndexChanged({
+   $selectedResourceGroup = $rgComboBox.SelectedItem
+   if ($selectedResourceGroup) {
+       try {
+           # Fetch VNets
+           $vnetList = az network vnet list --resource-group $selectedResourceGroup --query "[].name" -o tsv
+           $vnetComboBox.Items.Clear()
+           $vnetList | ForEach-Object { $vnetComboBox.Items.Add($_) }
+           if ($vnetComboBox.Items.Count -eq 0) {
+               [System.Windows.Forms.MessageBox]::Show("No VNets found in the selected resource group!")
+           } else {
+               $vnetComboBox.SelectedIndex = 0
+           }
+
+           # Fetch Storage Accounts
+           $storageList = az storage account list --resource-group $selectedResourceGroup --query "[].name" -o tsv
+           $storageComboBox.Items.Clear()
+           $storageList | ForEach-Object { $storageComboBox.Items.Add($_) }
+           if ($storageComboBox.Items.Count -eq 0) {
+               [System.Windows.Forms.MessageBox]::Show("No storage accounts found in the selected resource group!")
+           } else {
+               $storageComboBox.SelectedIndex = 0
+           }
+       } catch {
+           [System.Windows.Forms.MessageBox]::Show("Error fetching resources: $_")
+       }
+   }
+})
+
 # Bicep Param File label and textbox
 $bicepFileLabel = New-Object Windows.Forms.Label
 $bicepFileLabel.Text = "Bicep Param File"
@@ -90,12 +134,12 @@ $fileBrowseButton.Text = "Browse"
 $fileBrowseButton.Location = New-Object Drawing.Point(480, 220)
 $fileBrowseButton.Size = New-Object Drawing.Size(80, 30)
 $fileBrowseButton.Add_Click({
-    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $openFileDialog.Filter = "Bicep Parameter Files (*.bicepparam)|*.bicepparam|All Files (*.*)|*.*"
-    $openFileDialog.Title = "Select main.bicepparam file"
-    if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $bicepFilePathTextBox.Text = $openFileDialog.FileName
-    }
+   $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+   $openFileDialog.Filter = "Bicep Parameter Files (*.bicepparam)|*.bicepparam|All Files (*.*)|*.*"
+   $openFileDialog.Title = "Select main.bicepparam file"
+   if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+       $bicepFilePathTextBox.Text = $openFileDialog.FileName
+   }
 })
 $form.Controls.Add($fileBrowseButton)
 
@@ -119,53 +163,53 @@ $form.Controls.Add($adTreeView)
 
 # Load Active Directory OUs into TreeView
 function Load-OUs {
-    param (
-        [string]$baseDN = 'DC=example,DC=com' # place your domain name here.
-    )
-    try {
-        $searcher = New-Object DirectoryServices.DirectorySearcher
-        $searcher.SearchRoot = New-Object DirectoryServices.DirectoryEntry("LDAP://$baseDN")
-        $searcher.Filter = "(objectClass=organizationalUnit)"
-        $searcher.SearchScope = [System.DirectoryServices.SearchScope]::OneLevel
+   param (
+       [string]$baseDN = 'DC=example,DC=com'
+   )
+   try {
+       $searcher = New-Object DirectoryServices.DirectorySearcher
+       $searcher.SearchRoot = New-Object DirectoryServices.DirectoryEntry("LDAP://$baseDN")
+       $searcher.Filter = "(objectClass=organizationalUnit)"
+       $searcher.SearchScope = [System.DirectoryServices.SearchScope]::OneLevel
 
-        $searcher.FindAll() | ForEach-Object {
-            $entry = $_.GetDirectoryEntry()
-            $node = New-Object Windows.Forms.TreeNode
-            $node.Text = $entry.Properties["name"][0]
-            $node.Tag = $entry.Properties["distinguishedName"][0]
-            $node.Nodes.Add("Loading...")
-            $adTreeView.Nodes.Add($node)
-        }
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Error loading Active Directory: $_")
-    }
+       $searcher.FindAll() | ForEach-Object {
+           $entry = $_.GetDirectoryEntry()
+           $node = New-Object Windows.Forms.TreeNode
+           $node.Text = $entry.Properties["name"][0]
+           $node.Tag = $entry.Properties["distinguishedName"][0]
+           $node.Nodes.Add("Loading...")
+           $adTreeView.Nodes.Add($node)
+       }
+   } catch {
+       [System.Windows.Forms.MessageBox]::Show("Error loading Active Directory: $_")
+   }
 }
 
 # Expand event to load child OUs lazily
 $adTreeView.add_BeforeExpand({
-    $node = $_.Node
-    if ($node.Nodes[0].Text -eq "Loading...") {
-        $node.Nodes.Clear()
-        $searcher = New-Object DirectoryServices.DirectorySearcher
-        $searcher.SearchRoot = New-Object DirectoryServices.DirectoryEntry("LDAP://$($node.Tag)")
-        $searcher.Filter = "(objectClass=organizationalUnit)"
-        $searcher.SearchScope = [System.DirectoryServices.SearchScope]::OneLevel
+   $node = $_.Node
+   if ($node.Nodes[0].Text -eq "Loading...") {
+       $node.Nodes.Clear()
+       $searcher = New-Object DirectoryServices.DirectorySearcher
+       $searcher.SearchRoot = New-Object DirectoryServices.DirectoryEntry("LDAP://$($node.Tag)")
+       $searcher.Filter = "(objectClass=organizationalUnit)"
+       $searcher.SearchScope = [System.DirectoryServices.SearchScope]::OneLevel
 
-        $searcher.FindAll() | ForEach-Object {
-            $entry = $_.GetDirectoryEntry()
-            $childNode = New-Object Windows.Forms.TreeNode
-            $childNode.Text = $entry.Properties["name"][0]
-            $childNode.Tag = $entry.Properties["distinguishedName"][0]
-            $childNode.Nodes.Add("Loading...")
-            $node.Nodes.Add($childNode)
-        }
-    }
+       $searcher.FindAll() | ForEach-Object {
+           $entry = $_.GetDirectoryEntry()
+           $childNode = New-Object Windows.Forms.TreeNode
+           $childNode.Text = $entry.Properties["name"][0]
+           $childNode.Tag = $entry.Properties["distinguishedName"][0]
+           $childNode.Nodes.Add("Loading...")
+           $node.Nodes.Add($childNode)
+       }
+   }
 })
 
 # Select OU on click
 $adTreeView.add_NodeMouseClick({
-    $selectedNode = $_.Node
-    $selectedOUTextBox.Text = $selectedNode.Tag
+   $selectedNode = $_.Node
+   $selectedOUTextBox.Text = $selectedNode.Tag
 })
 
 # Submit button
@@ -174,26 +218,26 @@ $submitButton.Text = "Create VM"
 $submitButton.Location = New-Object Drawing.Point(10, 600)
 $submitButton.Size = New-Object Drawing.Size(550, 30)
 $submitButton.Add_Click({
-    $vmName = $vmNameTextBox.Text
-    $resourceGroup = $rgComboBox.SelectedItem
-    $vnetName = $vnetComboBox.SelectedItem
-    $storageAccount = $storageComboBox.SelectedItem
-    $selectedOU = $selectedOUTextBox.Text
+   $vmName = $vmNameTextBox.Text
+   $resourceGroup = $rgComboBox.SelectedItem
+   $vnetName = $vnetComboBox.SelectedItem
+   $storageAccount = $storageComboBox.SelectedItem
+   $selectedOU = $selectedOUTextBox.Text
 
-    if ([string]::IsNullOrWhiteSpace($vmName) -or [string]::IsNullOrWhiteSpace($resourceGroup) -or 
-        [string]::IsNullOrWhiteSpace($vnetName) -or [string]::IsNullOrWhiteSpace($storageAccount) -or 
-        [string]::IsNullOrWhiteSpace($selectedOU)) {
-        [System.Windows.Forms.MessageBox]::Show('Please fill in all fields!')
-        return
-    }
+   if ([string]::IsNullOrWhiteSpace($vmName) -or [string]::IsNullOrWhiteSpace($resourceGroup) -or 
+       [string]::IsNullOrWhiteSpace($vnetName) -or [string]::IsNullOrWhiteSpace($storageAccount) -or 
+       [string]::IsNullOrWhiteSpace($selectedOU)) {
+       [System.Windows.Forms.MessageBox]::Show('Please fill in all fields!')
+       return
+   }
 
-    try {
-        $bicepCommand = "az deployment group create --resource-group $resourceGroup --template-file ./myTemplate.bicep --parameters vmName='$vmName' vnetName='$vnetName' storageAccount='$storageAccount' ouDistinguishedName='$selectedOU'"
-        Invoke-Expression $bicepCommand
-        [System.Windows.Forms.MessageBox]::Show('VM Creation Successful!')
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Error creating VM: $_")
-    }
+   try {
+       $bicepCommand = "az deployment group create --resource-group $resourceGroup --template-file ./myTemplate.bicep --parameters vmName='$vmName' vnetName='$vnetName' storageAccount='$storageAccount' ouDistinguishedName='$selectedOU'"
+       Invoke-Expression $bicepCommand
+       [System.Windows.Forms.MessageBox]::Show('VM Creation Successful!')
+   } catch {
+       [System.Windows.Forms.MessageBox]::Show("Error creating VM: $_")
+   }
 })
 $form.Controls.Add($submitButton)
 
@@ -202,4 +246,3 @@ Load-OUs
 
 # Initialize the form
 $form.ShowDialog()
- 

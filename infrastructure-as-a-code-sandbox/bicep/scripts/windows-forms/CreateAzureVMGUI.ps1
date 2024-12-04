@@ -154,6 +154,22 @@ $osComboBoxRight.Items.Add('Server2016')
 $osComboBoxRight.Items.Add('Server2019')
 $osComboBoxRight.Items.Add('Server2022')
 $osComboBoxRight.Items.Add('Ubuntu1804')
+$osComboBoxRight.Items.Add('Ubuntu2004')
+$osComboBoxRight.Items.Add('Ubuntu2204')
+$osComboBoxRight.Items.Add('Debian11')
+$osComboBoxRight.Items.Add('CentOS7')
+$osComboBoxRight.Items.Add('CentOS8')
+$osComboBoxRight.Items.Add('RHEL8')
+$osComboBoxRight.Items.Add('RHEL9')
+$osComboBoxRight.Items.Add('SLES12')
+$osComboBoxRight.Items.Add('SLES15')
+$osComboBoxRight.Items.Add('AlmaLinux8')
+$osComboBoxRight.Items.Add('OracleLinux7')
+$osComboBoxRight.Items.Add('OracleLinux8')
+$osComboBoxRight.Items.Add('FlatcarContainerLinux')
+$osComboBoxRight.Items.Add('WindowsServerCore2016')
+$osComboBoxRight.Items.Add('WindowsServerCore2019')
+$osComboBoxRight.Items.Add('WindowsServerCore2022')
 
 # Extra Section (Right)
 #$labelRight = New-Object Windows.Forms.Label
@@ -349,6 +365,10 @@ $submitButton.Add_Click({
    $resourceGroup = $rgComboBox.SelectedItem
    $vnetName = $vnetComboBox.SelectedItem
    $storageAccount = $storageComboBox.SelectedItem
+   $snet = $snetComboBox.SelectedItem
+   $vmSize = $vmSizeComboBoxRight.SelectedItem
+   $storageType = $storageTypeComboBoxRight.SelectedItem
+   $os = $osComboBoxRight.SelectedItem
    $selectedOU = $selectedOUTextBox.Text
    $bicepParamFile = $bicepFilePathTextBox.Text
 
@@ -362,7 +382,7 @@ $submitButton.Add_Click({
 
    try {
        # Always include both the parameter file and inline parameters in the command
-       $bicepCommand = "az deployment group create --resource-group $resourceGroup --template-file ./main.bicep --parameters @$bicepParamFile vmName='$vmName' vnetName='$vnetName' storageAccount='$storageAccount' ouDistinguishedName='$selectedOU'"
+       $bicepCommand = "az deployment group create --resource-group $resourceGroup --template-file ./main.bicep --parameters @$bicepParamFile vmName='$vmName' vnetName='$vnetName' subnetName='$snet' storageAccountName='$storageAccount' vmSize='$vmSize' storageAccountType='$storageType' OS='$os' ouDistinguishedName='$selectedOU'"
 
        # Execute the Bicep deployment
        Invoke-Expression $bicepCommand

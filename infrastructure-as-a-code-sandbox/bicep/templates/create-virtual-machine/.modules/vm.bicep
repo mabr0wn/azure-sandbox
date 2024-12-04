@@ -46,6 +46,87 @@ var operatingSystemValues = {
     OfferValue: 'UbuntuServer'
     SkuValue: '18.04-LTS'
   }
+  Ubuntu2004: {
+    PublisherValue: 'Canonical'
+    OfferValue: 'UbuntuServer'
+    SkuValue: '20.04-LTS'
+  }
+  Ubuntu2204: {
+    PublisherValue: 'Canonical'
+    OfferValue: 'UbuntuServer'
+    SkuValue: '22.04-LTS'
+  }
+  Debian11: {
+    PublisherValue: 'Debian'
+    OfferValue: 'Debian'
+    SkuValue: '11'
+  }
+  CentOS7: {
+    PublisherValue: 'OpenLogic'
+    OfferValue: 'CentOS'
+    SkuValue: '7.9'
+  }
+  CentOS8: {
+    PublisherValue: 'OpenLogic'
+    OfferValue: 'CentOS'
+    SkuValue: '8.3'
+  }
+  RHEL8: {
+    PublisherValue: 'RedHat'
+    OfferValue: 'RHEL'
+    SkuValue: '8'
+  }
+  RHEL9: {
+    PublisherValue: 'RedHat'
+    OfferValue: 'RHEL'
+    SkuValue: '9'
+  }
+  SLES15: {
+    PublisherValue: 'SUSE'
+    OfferValue: 'SLES'
+    SkuValue: '15-SP3'
+  }
+  SLES12: {
+    PublisherValue: 'SUSE'
+    OfferValue: 'SLES'
+    SkuValue: '12-SP5'
+  }
+  AlmaLinux8: {
+    PublisherValue: 'AlmaLinux'
+    OfferValue: 'AlmaLinux'
+    SkuValue: '8'
+  }
+  OracleLinux7: {
+    PublisherValue: 'Oracle'
+    OfferValue: 'Oracle-Linux'
+    SkuValue: '7.9'
+  }
+  OracleLinux8: {
+    PublisherValue: 'Oracle'
+    OfferValue: 'Oracle-Linux'
+    SkuValue: '8.4'
+  }
+  FlatcarContainerLinux: {
+    PublisherValue: 'Kinvolk'
+    OfferValue: 'FlatcarContainerLinux'
+    SkuValue: 'Stable'
+  }
+  WindowsServerCore2016: {
+    PublisherValue: 'MicrosoftWindowsServer'
+    OfferValue: 'WindowsServer'
+    SkuValue: '2016-Datacenter-Core'
+  }
+  WindowsServerCore2019: {
+    PublisherValue: 'MicrosoftWindowsServer'
+    OfferValue: 'WindowsServer'
+    SkuValue: '2019-Datacenter-Core'
+  }
+  WindowsServerCore2022: {
+    PublisherValue: 'MicrosoftWindowsServer'
+    OfferValue: 'WindowsServer'
+    SkuValue: '2022-Datacenter-Core'
+  }
+  
 }
 
 

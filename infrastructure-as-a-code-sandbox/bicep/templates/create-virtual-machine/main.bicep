@@ -32,6 +32,22 @@ param location string
   'Server2019'
   'Server2022'
   'Ubuntu1804'
+  'Ubuntu2004'
+  'Ubuntu2204'
+  'Debian11'
+  'CentOS7'
+  'CentOS8'
+  'RHEL8'
+  'RHEL9'
+  'SLES12'
+  'SLES15'
+  'AlmaLinux8'
+  'OracleLinux7'
+  'OracleLinux8'
+  'FlatcarContainerLinux'
+  'WindowsServerCore2016'
+  'WindowsServerCore2019'
+  'WindowsServerCore2022'
 ])
 param OS string
 @description('Enter the OU path. i.e. OU=Departments,DC=ad,DC=contoso,DC=com')

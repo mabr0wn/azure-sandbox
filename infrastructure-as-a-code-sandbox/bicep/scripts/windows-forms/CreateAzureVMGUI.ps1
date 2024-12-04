@@ -284,8 +284,8 @@ $selectedOUTextBox.ReadOnly = $true
 $form.Controls.Add($selectedOUTextBox)
 
 $adTreeView = New-Object Windows.Forms.TreeView
-$adTreeView.Location = New-Object Drawing.Point(10, 380)
-$adTreeView.Size = New-Object Drawing.Size(550, 250)
+$adTreeView.Location = New-Object Drawing.Point(10, 350)
+$adTreeView.Size = New-Object Drawing.Size(250, 250)
 $form.Controls.Add($adTreeView)
 
 # Load Active Directory OUs into TreeView
@@ -342,14 +342,16 @@ $adTreeView.add_NodeMouseClick({
 # Submit button
 $submitButton = New-Object Windows.Forms.Button
 $submitButton.Text = "Create VM"
-$submitButton.Location = New-Object Drawing.Point(10, 600)
-$submitButton.Size = New-Object Drawing.Size(550, 30)
+$submitButton.Location = New-Object Drawing.Point(30, 620)
+$submitButton.Size = New-Object Drawing.Size(600, 30)
 $submitButton.Add_Click({
    $vmName = $vmNameTextBox.Text
    $resourceGroup = $rgComboBox.SelectedItem
    $vnetName = $vnetComboBox.SelectedItem
    $storageAccount = $storageComboBox.SelectedItem
    $selectedOU = $selectedOUTextBox.Text
+   $bicepParamFile = $bicepFilePathTextBox.Text
+
 
    if ([string]::IsNullOrWhiteSpace($vmName) -or [string]::IsNullOrWhiteSpace($resourceGroup) -or 
        [string]::IsNullOrWhiteSpace($vnetName) -or [string]::IsNullOrWhiteSpace($storageAccount) -or 
@@ -359,7 +361,10 @@ $submitButton.Add_Click({
    }
 
    try {
-       $bicepCommand = "az deployment group create --resource-group $resourceGroup --template-file ./myTemplate.bicep --parameters vmName='$vmName' vnetName='$vnetName' storageAccount='$storageAccount' ouDistinguishedName='$selectedOU'"
+       # Always include both the parameter file and inline parameters in the command
+       $bicepCommand = "az deployment group create --resource-group $resourceGroup --template-file ./main.bicep --parameters @$bicepParamFile vmName='$vmName' vnetName='$vnetName' storageAccount='$storageAccount' ouDistinguishedName='$selectedOU'"
+
+       # Execute the Bicep deployment
        Invoke-Expression $bicepCommand
        [System.Windows.Forms.MessageBox]::Show('VM Creation Successful!')
    } catch {
@@ -372,4 +377,4 @@ $form.Controls.Add($submitButton)
 Load-OUs
 
 # Initialize the form
-$form.ShowDialog() 
+$form.ShowDialog()  

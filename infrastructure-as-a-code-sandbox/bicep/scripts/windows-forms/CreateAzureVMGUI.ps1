@@ -33,7 +33,7 @@ $form.Controls.Add($rgComboBox)
 
 # VNet Section
 $vnetLabel = New-Object Windows.Forms.Label
-$vnetLabel.Text = "VNET Name"
+$vnetLabel.Text = "Vnet Name"
 $vnetLabel.Location = New-Object Drawing.Point(10, 140)
 $vnetLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($vnetLabel)
@@ -44,15 +44,28 @@ $vnetComboBox.Size = New-Object Drawing.Size(200, 30)
 $vnetComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($vnetComboBox)
 
+# Subnet Section
+$snetLabel = New-Object Windows.Forms.Label
+$snetLabel.Text = "Subnet Name"
+$snetLabel.Location = New-Object Drawing.Point(10, 180)
+$snetLabel.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($snetLabel)
+
+$snetComboBox = New-Object Windows.Forms.ComboBox
+$snetComboBox.Location = New-Object Drawing.Point(120, 180)
+$snetComboBox.Size = New-Object Drawing.Size(200, 30)
+$snetComboBox.DropDownStyle = 'DropDownList'
+$form.Controls.Add($snetComboBox)
+
 # Storage Account Section
 $storageLabel = New-Object Windows.Forms.Label
 $storageLabel.Text = "Storage Group"
-$storageLabel.Location = New-Object Drawing.Point(10, 180)
+$storageLabel.Location = New-Object Drawing.Point(10, 220)
 $storageLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($storageLabel)
 
 $storageComboBox = New-Object Windows.Forms.ComboBox
-$storageComboBox.Location = New-Object Drawing.Point(120, 180)
+$storageComboBox.Location = New-Object Drawing.Point(120, 220)
 $storageComboBox.Size = New-Object Drawing.Size(200, 30)
 $storageComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($storageComboBox)
@@ -100,6 +113,22 @@ $rgComboBox.add_SelectedIndexChanged({
            } else {
                $vnetComboBox.SelectedIndex = 0
            }
+           
+           # Fetch Subnets for the selected VNet
+           if ($vnetComboBox.SelectedItem) {
+               $selectedVnet = $vnetComboBox.SelectedItem
+               $subnetList = az network vnet subnet list --resource-group $selectedResourceGroup --vnet-name $selectedVnet --query "[].name" -o tsv
+               $snetComboBox.Items.Clear()
+               $subnetList | ForEach-Object { $snetComboBox.Items.Add($_) }
+               if ($snetComboBox.Items.Count -eq 0) {
+                   [System.Windows.Forms.MessageBox]::Show("No subnets found in the selected VNet!")
+               } else {
+                   $snetComboBox.SelectedIndex = 0
+               }
+           } else {
+               [System.Windows.Forms.MessageBox]::Show("Please select a VNet first!")
+           }
+
 
            # Fetch Storage Accounts
            $storageList = az storage account list --resource-group $selectedResourceGroup --query "[].name" -o tsv
@@ -119,11 +148,11 @@ $rgComboBox.add_SelectedIndexChanged({
 # Bicep Param File label and textbox
 $bicepFileLabel = New-Object Windows.Forms.Label
 $bicepFileLabel.Text = "Bicep Param File"
-$bicepFileLabel.Location = New-Object Drawing.Point(10, 220)
+$bicepFileLabel.Location = New-Object Drawing.Point(10, 260)
 $form.Controls.Add($bicepFileLabel)
 
 $bicepFilePathTextBox = New-Object Windows.Forms.TextBox
-$bicepFilePathTextBox.Location = New-Object Drawing.Point(120, 220)
+$bicepFilePathTextBox.Location = New-Object Drawing.Point(120, 260)
 $bicepFilePathTextBox.Size = New-Object Drawing.Size(350, 30)
 $bicepFilePathTextBox.ReadOnly = $true
 $form.Controls.Add($bicepFilePathTextBox)
@@ -131,7 +160,7 @@ $form.Controls.Add($bicepFilePathTextBox)
 # Browse button for Bicep Param File
 $fileBrowseButton = New-Object Windows.Forms.Button
 $fileBrowseButton.Text = "Browse"
-$fileBrowseButton.Location = New-Object Drawing.Point(480, 220)
+$fileBrowseButton.Location = New-Object Drawing.Point(480, 260)
 $fileBrowseButton.Size = New-Object Drawing.Size(80, 30)
 $fileBrowseButton.Add_Click({
    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -146,18 +175,18 @@ $form.Controls.Add($fileBrowseButton)
 # Active Directory OU Selection
 $ouLabel = New-Object Windows.Forms.Label
 $ouLabel.Text = "Active Directory OU"
-$ouLabel.Location = New-Object Drawing.Point(10, 260)
+$ouLabel.Location = New-Object Drawing.Point(10, 300)
 $ouLabel.Size = New-Object Drawing.Size(150, 30)
 $form.Controls.Add($ouLabel)
 
 $selectedOUTextBox = New-Object Windows.Forms.TextBox
-$selectedOUTextBox.Location = New-Object Drawing.Point(10, 300)
+$selectedOUTextBox.Location = New-Object Drawing.Point(10, 340)
 $selectedOUTextBox.Size = New-Object Drawing.Size(550, 30)
 $selectedOUTextBox.ReadOnly = $true
 $form.Controls.Add($selectedOUTextBox)
 
 $adTreeView = New-Object Windows.Forms.TreeView
-$adTreeView.Location = New-Object Drawing.Point(10, 340)
+$adTreeView.Location = New-Object Drawing.Point(10, 380)
 $adTreeView.Size = New-Object Drawing.Size(550, 250)
 $form.Controls.Add($adTreeView)
 

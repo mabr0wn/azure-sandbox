@@ -23,6 +23,7 @@ param scriptContent string
 param kvname string
 param storageAccountName string
 param resourceGroupName string
+param sshPublicKey string
 
 var operatingSystemValues = {
   Server2016: {
@@ -44,21 +45,6 @@ var operatingSystemValues = {
     PublisherValue: 'Canonical'
     OfferValue: 'UbuntuServer'
     SkuValue: '18.04-LTS'
-  }
-  Ubuntu2004: {
-    PublisherValue: 'Canonical'
-    OfferValue: 'UbuntuServer'
-    SkuValue: '20_04-lts'
-  }
-  CentOS7_9: {
-    PublisherValue: 'OpenLogic'
-    OfferValue: 'CentOS'
-    SkuValue: '7_9'
-  }
-  CentOS8_3: {
-    PublisherValue: 'OpenLogic'
-    OfferValue: 'CentOS'
-    SkuValue: '8_3'
   }
 }
 
@@ -95,10 +81,21 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
     osProfile: {
       computerName: '${vmName}${i + 1}${suffix}'
       adminUsername: vmUserName    
-      windowsConfiguration: {
+      adminPassword: (OS == 'Windows' ? vmPassword : null)  // Only set password for Windows VMs
+      linuxConfiguration: (OS == 'Linux' ? {
+        disablePasswordAuthentication: true
+        ssh: {
+          publicKeys: [
+            {
+              path: '/home/${vmUserName}/.ssh/authorized_keys'
+              keyData: sshPublicKey
+            }
+          ]
+        }
+      } : null)
+      windowsConfiguration: (OS == 'Windows' ? {
         provisionVMAgent: true
-      }
-      adminPassword: vmPassword
+      } : null)
     }
     networkProfile: {
       networkInterfaces: [
@@ -159,7 +156,7 @@ resource domainJoinUserPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07
     value: domainJoinUserPassword
   }
 }
-resource windowsDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): if (contains(operatingSystemValues, 'Server')){
+resource windowsDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): if (operatingSystemValues[OS].SkuValue == '2016-Datacenter' || operatingSystemValues[OS].SkuValue == '2019-Datacenter' || operatingSystemValues[OS].SkuValue == '2022-Datacenter') {
   name: toLower('${vmName}${i + 1}${suffix}/joindomain')
   location: location
   properties: {
@@ -184,7 +181,7 @@ resource windowsDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03
   ]
 }]
 
-resource linuxDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): if (!(contains(operatingSystemValues, 'Ubuntu') || contains(operatingSystemValues, 'CentOS'))) {
+resource linuxDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): if (operatingSystemValues[OS].OfferValue == 'UbuntuServer') {
   name: toLower('${vmName}${i + 1}${suffix}/joindomain')
   location: location
   properties: {
@@ -193,14 +190,16 @@ resource linuxDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-0
     typeHandlerVersion: '2.1'
     autoUpgradeMinorVersion: true
     settings: {
+      skipDos2Unix: false
+      timestamp: 123456789
       fileUris: [
         'https://<your-storage-account-name>.blob.core.windows.net/scripts/join-linux-domain.sh' // Update with the actual URI to your script
       ]
-      commandToExecute: 'bash join-linux-domain.sh'
     }
     protectedSettings: {
+      commandToExecute: 'bash join-linux-domain.sh'
       storageAccountName: existingStorageAccount
-      storageAccountKey: 'Eby8vdM02xNOcq7uM0sPsp6ycUQpVzQ6NQ6k6lxKTUm6Nf6p6XKwWDFk2QO47tR4B3AyRtTkcX26K4pB5+O='
+      storageAccountKey: 'Eby8vdM02xNOcq7uM0sPsp6ycUQpVzQ6NQ6k6lxKTUm6Nf6p6XKwWDFk2QO47tR4B3AyRtTkcX26K4pB5+O=' // Update with actual key(dummy key)
       // Optionally pass domain credentials securely
       fileUris: []
     }

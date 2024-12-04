@@ -32,9 +32,6 @@ param location string
   'Server2019'
   'Server2022'
   'Ubuntu1804'
-  'Ubuntu2004'
-  'CentOS7_9'
-  'CentOS8_3'
 ])
 param OS string
 @description('Enter the OU path. i.e. OU=Departments,DC=ad,DC=contoso,DC=com')
@@ -55,6 +52,7 @@ param scriptContent string
 param kvname string
 param storageAccountName string
 param resourceGroupName string
+param sshPublicKey string
 @allowed([
 'Premium_LRS'
 'Premium_ZRS'
@@ -95,6 +93,7 @@ module azVirtualMachine './.modules/vm.bicep' = {
     storageAccountType: storageAccountType
     scriptContent: scriptContent
     resourceGroupName: resourceGroupName
+    sshPublicKey: sshPublicKey
     storageAccountName: storageAccountName
     tags: {
       dept: dept

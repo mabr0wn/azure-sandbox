@@ -100,20 +100,20 @@ $vmSizeComboBoxRight.Size = New-Object Drawing.Size(200, 30)
 $vmSizeComboBoxRight.DropDownStyle = 'DropDownList'
 $form.Controls.Add($vmSizeComboBoxRight)
 
-$vmSizeComboBoxRight.Items.Add('Standard_DS1_v2')
-$vmSizeComboBoxRight.Items.Add('Standard_DS2_v2')
-$vmSizeComboBoxRight.Items.Add('Standard_DS3_v2')
-$vmSizeComboBoxRight.Items.Add('Standard_DS4_v2')
-$vmSizeComboBoxRight.Items.Add('Standard_D1_v2')
-$vmSizeComboBoxRight.Items.Add('Standard_D2_v2')
-$vmSizeComboBoxRight.Items.Add('Standard_D3_v2')
-$vmSizeComboBoxRight.Items.Add('Standard_D4_v2')
-$vmSizeComboBoxRight.Items.Add('Standard_D5_v2')
-$vmSizeComboBoxRight.Items.Add('Standard_F1')
+$vmSizes = @(
+    'Standard_DS1_v2', 'Standard_DS2_v2', 'Standard_DS3_v2', 'Standard_DS4_v2',
+    'Standard_D1_v2', 'Standard_D2_v2', 'Standard_D3_v2', 'Standard_D4_v2',
+    'Standard_D5_v2', 'Standard_F1'
+)
+
+foreach ($vmSize in $vmSizes) {
+    $vmSizeComboBoxRight.Items.Add($vmSize) > $null
+}
+
 
 # VNet Section (Right)
 $storageTypeLabelRight = New-Object Windows.Forms.Label
-$storageTypeLabelRight.Text = "Storage Type*:"
+$storageTypeLabelRight.Text = "Disk Type*:"
 $storageTypeLabelRight.Location = New-Object Drawing.Point(330, 140)
 $storageTypeLabelRight.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($storageTypeLabelRight)
@@ -124,15 +124,16 @@ $storageTypeComboBoxRight.Size = New-Object Drawing.Size(200, 30)
 $storageTypeComboBoxRight.DropDownStyle = 'DropDownList'
 
 # Add OS options to the ComboBox
-$storageTypeComboBoxRight.Items.Add('Premium_LRS')
-$storageTypeComboBoxRight.Items.Add('Premium_ZRS')
-$storageTypeComboBoxRight.Items.Add('Standard_GRS')
-$storageTypeComboBoxRight.Items.Add('Standard_GZRS')
-$storageTypeComboBoxRight.Items.Add('Standard_LRS')
-$storageTypeComboBoxRight.Items.Add('Standard_RAGRS')
-$storageTypeComboBoxRight.Items.Add('Standard_RAGZRS')
-$storageTypeComboBoxRight.Items.Add('Standard_ZRS')
-$storageTypeComboBoxRight.Items.Add('StandardSSD_LRS')
+$storageTypes = @(
+    'Premium_LRS', 'Premium_ZRS', 'Standard_GRS', 'Standard_GZRS', 
+    'Standard_LRS', 'Standard_RAGRS', 'Standard_RAGZRS', 'Standard_ZRS', 
+    'StandardSSD_LRS'
+)
+
+foreach ($storageType in $storageTypes) {
+    $storageTypeComboBoxRight.Items.Add($storageType) > $null
+}
+
 
 $form.Controls.Add($storageTypeComboBoxRight)
 
@@ -150,26 +151,19 @@ $osComboBoxRight.DropDownStyle = 'DropDownList'
 $form.Controls.Add($osComboBoxRight)
 
 # Add OS options to the ComboBox
-$osComboBoxRight.Items.Add('Server2016')
-$osComboBoxRight.Items.Add('Server2019')
-$osComboBoxRight.Items.Add('Server2022')
-$osComboBoxRight.Items.Add('Ubuntu1804')
-$osComboBoxRight.Items.Add('Ubuntu2004')
-$osComboBoxRight.Items.Add('Ubuntu2204')
-$osComboBoxRight.Items.Add('Debian11')
-$osComboBoxRight.Items.Add('CentOS7')
-$osComboBoxRight.Items.Add('CentOS8')
-$osComboBoxRight.Items.Add('RHEL8')
-$osComboBoxRight.Items.Add('RHEL9')
-$osComboBoxRight.Items.Add('SLES12')
-$osComboBoxRight.Items.Add('SLES15')
-$osComboBoxRight.Items.Add('AlmaLinux8')
-$osComboBoxRight.Items.Add('OracleLinux7')
-$osComboBoxRight.Items.Add('OracleLinux8')
-$osComboBoxRight.Items.Add('FlatcarContainerLinux')
-$osComboBoxRight.Items.Add('WindowsServerCore2016')
-$osComboBoxRight.Items.Add('WindowsServerCore2019')
-$osComboBoxRight.Items.Add('WindowsServerCore2022')
+$osList = @(
+    'Server2016', 'Server2019', 'Server2022',
+    'Ubuntu1804', 'Ubuntu2004', 'Ubuntu2204',
+    'Debian11', 'CentOS7', 'CentOS8', 'RHEL8', 'RHEL9',
+    'SLES12', 'SLES15', 'AlmaLinux8', 'OracleLinux7',
+    'OracleLinux8', 'FlatcarContainerLinux',
+    'WindowsServerCore2016', 'WindowsServerCore2019',
+    'WindowsServerCore2022'
+)
+
+foreach ($os in $osList) {
+    $osComboBoxRight.Items.Add($os) > $null
+}
 
 # Extra Section (Right)
 #$labelRight = New-Object Windows.Forms.Label
@@ -191,7 +185,7 @@ $connectButton.Location = New-Object Drawing.Point(50, 10)
 $connectButton.Size = New-Object Drawing.Size(550, 30)
 $connectButton.Add_Click({
    # Login to Azure using Azure CLI
-   $loginResult = az login
+   $loginResult = az login 2>$null
    if ($loginResult) {
        [System.Windows.Forms.MessageBox]::Show("Connected to Azure.")
        
@@ -394,7 +388,7 @@ $submitButton.Add_Click({
 $form.Controls.Add($submitButton)
 
 # Load OUs when form is initialized
-Load-OUs
+Load-OUs | Out-Null
 
 # Initialize the form
-$form.ShowDialog()  
+$form.ShowDialog() | Out-Null

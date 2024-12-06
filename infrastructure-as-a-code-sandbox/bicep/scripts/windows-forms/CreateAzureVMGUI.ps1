@@ -15,8 +15,31 @@ $form.Controls.Add($vmNameLabel)
 
 $vmNameTextBox = New-Object Windows.Forms.TextBox
 $vmNameTextBox.Location = New-Object Drawing.Point(120, 60)
-$vmNameTextBox.Size = New-Object Drawing.Size(200, 30)
+$vmNameTextBox.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($vmNameTextBox)
+
+# VM count Section (Left)
+$countLabel = New-Object Windows.Forms.Label
+$countLabel.Text = "Count:"
+$countLabel.Location = New-Object Drawing.Point(230, 60)
+$countLabel.Size = New-Object Drawing.Size(40, 20)
+$form.Controls.Add($countLabel)
+
+$countComboBox = New-Object Windows.Forms.ComboBox
+$countComboBox.Location = New-Object Drawing.Point(270, 60)
+$countComboBox.Size = New-Object Drawing.Size(50, 30)
+$countComboBox.DropDownStyle = 'DropDownList'
+$form.Controls.Add($countComboBox)
+
+$countSizes = @(
+    '1', '2', '3', '4',
+    '5', '6', '7', '8',
+    '9', '10'
+)
+
+foreach ($countSize in $countSizes) {
+    $countComboBox.Items.Add($countSize) > $null
+}
 
 # Resource Group Section (Left)
 $rgLabel = New-Object Windows.Forms.Label
@@ -188,7 +211,6 @@ foreach ($os in $osList) {
      $locationComboBoxRight.Items.Add($location) > $null
  } 
  
-
 # Connect to Azure Button
 $connectButton = New-Object Windows.Forms.Button
 $connectButton.Text = "Connect to Azure"
@@ -279,7 +301,7 @@ $form.Controls.Add($bicepFilePathTextBox)
 # Browse button for Bicep Param File
 $fileBrowseButton = New-Object Windows.Forms.Button
 $fileBrowseButton.Text = "Browse"
-$fileBrowseButton.Location = New-Object Drawing.Point(480, 260)
+$fileBrowseButton.Location = New-Object Drawing.Point(480, 255)
 $fileBrowseButton.Size = New-Object Drawing.Size(80, 30)
 $fileBrowseButton.Add_Click({
    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -451,6 +473,7 @@ $submitButton.Location = New-Object Drawing.Point(30, 620)
 $submitButton.Size = New-Object Drawing.Size(600, 30)
 $submitButton.Add_Click({
    $vmName = $vmNameTextBox.Text
+   $vmCount = $countComboBox.SelectedItem
    $resourceGroup = $rgComboBox.SelectedItem
    $vnetName = $vnetComboBox.SelectedItem
    $storageAccount = $storageComboBox.SelectedItem
@@ -487,6 +510,7 @@ $submitButton.Add_Click({
             vmSize='$vmSize' `
             storageAccountType='$storageType' `
             OS='$os' `
+            virtualMachineCount='$vmCount' `
             dept='$dept' `
             env='$env' `
             app='$app' `

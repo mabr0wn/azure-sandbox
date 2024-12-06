@@ -11,6 +11,7 @@ param location string
 param vNetName string
 param vNetResourceGroup string
 param SubnetName string
+param IP string
 param domainFQDN string
 param domainJoinUserName string
 param ouPath string
@@ -205,7 +206,10 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(
       {
         name: 'ipconfig1'
         properties: {
-          privateIPAllocationMethod: 'Dynamic'
+          // run the cli command below to see which IPs are available in azure.
+          // az network nic list --resource-group $rg --query "[].{Name:name, PrivateIPs:join(',', ipConfigurations[].privateIPAddress)}" -o table
+          privateIPAddress: IP
+          privateIPAllocationMethod: 'static'
           subnet: {
             id: subnetRef
           }

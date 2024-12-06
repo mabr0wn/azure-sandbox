@@ -20,6 +20,7 @@ param domainJoinSecretName string
 @description('Enter the azure location.')
 param location string
 param OS string
+param IP string
 @description('Enter the OU path. i.e. OU=Departments,DC=ad,DC=contoso,DC=com')
 param ouPath string
 @description('How many vm are being deployed?')
@@ -54,6 +55,7 @@ module azVirtualMachine './.modules/vm.bicep' = {
     domainJoinSecretName: domainJoinSecretName
     location: location
     OS: OS
+    IP: IP
     ouPath: ouPath
     SubnetName: subnetName
     virtualMachineCount: virtualMachineCount

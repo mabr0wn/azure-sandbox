@@ -4,11 +4,11 @@
 .DESCRIPTION
   Uses a combination of Active Directory, Bicep, and Powershell commands to create a Virtual Server in Azure.
 .NOTES
-  Version:        2.73
+  Version:        2.74
   Author:         Matt Brown
   Creation Date:  10/8/2024
   Change Date: 12/6/2024
-  Purpose/Change: Added Wrapper.
+  Purpose/Change: Added IP text box to bicep command.
   Changed By: Matt Brown
 #>
 
@@ -526,6 +526,7 @@ $submitButton.Add_Click({
    $vmSize = $vmSizeComboBoxRight.SelectedItem
    $storageType = $storageTypeComboBoxRight.SelectedItem
    $os = $osComboBoxRight.SelectedItem
+   $ip = $ipTextBoxRight.Text
    $env = $comboBoxEnv.SelectedItem
    $owner = $comboBoxOwner.SelectedItem
    $dept = $comboBoxDept.SelectedItem
@@ -555,6 +556,7 @@ $submitButton.Add_Click({
             vmSize='$vmSize' `
             storageAccountType='$storageType' `
             OS='$os' `
+            IP='$ip' `
             virtualMachineCount='$vmCount' `
             dept='$dept' `
             env='$env' `

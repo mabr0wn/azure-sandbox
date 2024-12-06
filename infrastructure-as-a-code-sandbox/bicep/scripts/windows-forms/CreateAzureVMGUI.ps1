@@ -1,10 +1,31 @@
+<#
+.SYNOPSIS
+  Used to created VM servers in Azure.
+.DESCRIPTION
+  Uses a combination of Active Directory, Bicep, and Powershell commands to create a Virtual Server in Azure.
+.NOTES
+  Version:        2.73
+  Author:         Matt Brown
+  Creation Date:  10/8/2024
+  Change Date: 12/6/2024
+  Purpose/Change: Added Wrapper.
+  Changed By: Matt Brown
+#>
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
 # Create the form
 $form = New-Object Windows.Forms.Form
 $form.Text = 'Create Azure VM'
-$form.Size = New-Object Drawing.Size(675, 700)
+$form.Size = New-Object Drawing.Size(675, 730)
+
+# Create a GroupBox for Azure Server Information
+$azureInfoGroupBox = New-Object Windows.Forms.GroupBox
+$azureInfoGroupBox.Text = "Azure Server Information"
+$azureInfoGroupBox.Location = New-Object Drawing.Point(5, 50) # Adjust position as needed
+$azureInfoGroupBox.Size = New-Object Drawing.Size(650, 270)  # Adjust size as needed
+$form.Controls.Add($azureInfoGroupBox)
 
 # VM Name Section (Left)
 $vmNameLabel = New-Object Windows.Forms.Label
@@ -286,14 +307,38 @@ $rgComboBox.add_SelectedIndexChanged({
    }
 })
 
+# Move existing controls inside the GroupBox
+$azureInfoGroupBox.Controls.Add($vmNameLabel)
+$azureInfoGroupBox.Controls.Add($vmNameTextBox)
+$azureInfoGroupBox.Controls.Add($countLabel)
+$azureInfoGroupBox.Controls.Add($countComboBox)
+$azureInfoGroupBox.Controls.Add($rgLabel)
+$azureInfoGroupBox.Controls.Add($rgComboBox)
+$azureInfoGroupBox.Controls.Add($vnetLabel)
+$azureInfoGroupBox.Controls.Add($vnetComboBox)
+$azureInfoGroupBox.Controls.Add($snetLabel)
+$azureInfoGroupBox.Controls.Add($snetComboBox)
+$azureInfoGroupBox.Controls.Add($storageLabel)
+$azureInfoGroupBox.Controls.Add($storageComboBox)
+$azureInfoGroupBox.Controls.Add($ipLabelRight)
+$azureInfoGroupBox.Controls.Add($ipTextBoxRight)
+$azureInfoGroupBox.Controls.Add($vmSizeLabelRight)
+$azureInfoGroupBox.Controls.Add($vmSizeComboBoxRight)
+$azureInfoGroupBox.Controls.Add($storageTypeLabelRight)
+$azureInfoGroupBox.Controls.Add($storageTypeComboBoxRight)
+$azureInfoGroupBox.Controls.Add($osLabelRight)
+$azureInfoGroupBox.Controls.Add($osComboBoxRight)
+$azureInfoGroupBox.Controls.Add($locationLabelRight)
+$azureInfoGroupBox.Controls.Add($locationComboBoxRight)
+
 # Bicep Param File label and textbox
 $bicepFileLabel = New-Object Windows.Forms.Label
 $bicepFileLabel.Text = "Bicep Param File*:"
-$bicepFileLabel.Location = New-Object Drawing.Point(10, 260)
+$bicepFileLabel.Location = New-Object Drawing.Point(10, 330)
 $form.Controls.Add($bicepFileLabel)
 
 $bicepFilePathTextBox = New-Object Windows.Forms.TextBox
-$bicepFilePathTextBox.Location = New-Object Drawing.Point(120, 260)
+$bicepFilePathTextBox.Location = New-Object Drawing.Point(120, 330)
 $bicepFilePathTextBox.Size = New-Object Drawing.Size(350, 30)
 $bicepFilePathTextBox.ReadOnly = $true
 $form.Controls.Add($bicepFilePathTextBox)
@@ -301,7 +346,7 @@ $form.Controls.Add($bicepFilePathTextBox)
 # Browse button for Bicep Param File
 $fileBrowseButton = New-Object Windows.Forms.Button
 $fileBrowseButton.Text = "Browse"
-$fileBrowseButton.Location = New-Object Drawing.Point(480, 255)
+$fileBrowseButton.Location = New-Object Drawing.Point(480, 325)
 $fileBrowseButton.Size = New-Object Drawing.Size(80, 30)
 $fileBrowseButton.Add_Click({
    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -316,31 +361,31 @@ $form.Controls.Add($fileBrowseButton)
 # Active Directory OU Selection
 $ouLabel = New-Object Windows.Forms.Label
 $ouLabel.Text = "OU*:"
-$ouLabel.Location = New-Object Drawing.Point(10, 310)
+$ouLabel.Location = New-Object Drawing.Point(10, 360)
 $ouLabel.Size = New-Object Drawing.Size(30, 30)
 $form.Controls.Add($ouLabel)
 
 $selectedOUTextBox = New-Object Windows.Forms.TextBox
-$selectedOUTextBox.Location = New-Object Drawing.Point(120, 310)
+$selectedOUTextBox.Location = New-Object Drawing.Point(120, 360)
 $selectedOUTextBox.Size = New-Object Drawing.Size(350, 30)
 $selectedOUTextBox.ReadOnly = $true
 $form.Controls.Add($selectedOUTextBox)
 
 $adTreeView = New-Object Windows.Forms.TreeView
-$adTreeView.Location = New-Object Drawing.Point(10, 350)
+$adTreeView.Location = New-Object Drawing.Point(10, 390)
 $adTreeView.Size = New-Object Drawing.Size(250, 250)
 $form.Controls.Add($adTreeView)
 
 # Create and add a label for "Environment"
 $labelEnv = New-Object Windows.Forms.Label
 $labelEnv.Text = "Environment:"
-$labelEnv.Location = New-Object Drawing.Point(280, 350)
+$labelEnv.Location = New-Object Drawing.Point(280, 390)
 $labelEnv.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($labelEnv)
 
 # Create and add a ComboBox for Environment
 $comboBoxEnv = New-Object Windows.Forms.ComboBox
-$comboBoxEnv.Location = New-Object Drawing.Point(380, 350)
+$comboBoxEnv.Location = New-Object Drawing.Point(380, 390)
 $comboBoxEnv.Size = New-Object Drawing.Size(200, 30)
 $comboBoxEnv.DropDownStyle = 'DropDownList'
 $form.Controls.Add($comboBoxEnv)
@@ -355,13 +400,13 @@ foreach ($envSize in $envSizes) {
 # Create and add a label for "Department"
 $labelDept = New-Object Windows.Forms.Label
 $labelDept.Text = "Business Unit:"
-$labelDept.Location = New-Object Drawing.Point(280, 390)
+$labelDept.Location = New-Object Drawing.Point(280, 430)
 $labelDept.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($labelDept)
 
 # Create and add a ComboBox for Department
 $comboBoxDept = New-Object Windows.Forms.ComboBox
-$comboBoxDept.Location = New-Object Drawing.Point(380, 390)
+$comboBoxDept.Location = New-Object Drawing.Point(380, 430)
 $comboBoxDept.Size = New-Object Drawing.Size(200, 30)
 $comboBoxDept.DropDownStyle = 'DropDownList'
 $form.Controls.Add($comboBoxDept)
@@ -376,13 +421,13 @@ foreach ($deptSize in $deptSizes) {
 # Create and add a label for "Owner"
 $labelOwner = New-Object Windows.Forms.Label
 $labelOwner.Text = "Owner:"
-$labelOwner.Location = New-Object Drawing.Point(280, 430)
+$labelOwner.Location = New-Object Drawing.Point(280, 470)
 $labelOwner.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($labelOwner)
 
 # Create and add a ComboBox for Owner
 $comboBoxOwner = New-Object Windows.Forms.ComboBox
-$comboBoxOwner.Location = New-Object Drawing.Point(380, 430)
+$comboBoxOwner.Location = New-Object Drawing.Point(380, 470)
 $comboBoxOwner.Size = New-Object Drawing.Size(200, 30)
 $comboBoxOwner.DropDownStyle = 'DropDownList'
 $form.Controls.Add($comboBoxOwner)
@@ -397,13 +442,13 @@ foreach ($ownerSize in $ownerSizes) {
 # Create and add a label for "Application"
 $labelApp = New-Object Windows.Forms.Label
 $labelApp.Text = "Application:"
-$labelApp.Location = New-Object Drawing.Point(280, 470)
+$labelApp.Location = New-Object Drawing.Point(280, 510)
 $labelApp.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($labelApp)
 
-# Create and add a ComboBox for Application
+# Create and add a ComboBox for Owner
 $comboBoxApp = New-Object Windows.Forms.ComboBox
-$comboBoxApp.Location = New-Object Drawing.Point(380, 470)
+$comboBoxApp.Location = New-Object Drawing.Point(380, 510)
 $comboBoxApp.Size = New-Object Drawing.Size(200, 30)
 $comboBoxApp.DropDownStyle = 'DropDownList'
 $form.Controls.Add($comboBoxApp)
@@ -469,7 +514,7 @@ $adTreeView.add_NodeMouseClick({
 # Submit button
 $submitButton = New-Object Windows.Forms.Button
 $submitButton.Text = "Create VM"
-$submitButton.Location = New-Object Drawing.Point(30, 620)
+$submitButton.Location = New-Object Drawing.Point(30, 650)
 $submitButton.Size = New-Object Drawing.Size(600, 30)
 $submitButton.Add_Click({
    $vmName = $vmNameTextBox.Text

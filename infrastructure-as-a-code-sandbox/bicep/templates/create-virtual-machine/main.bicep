@@ -4,6 +4,8 @@
 @description('Enter the department. i.e. IT')
 param dept string
 param env string
+param owner string
+param app string
 @description('Enter the virtual machine name.')
 param vmName string
 param suffix string
@@ -38,7 +40,6 @@ param storageAccountName string
 param resourceGroupName string
 param sshPublicKey string
 param storageAccountType string
-
 ////////////////////////////////////////////////////////////////////////////////
 // Deployment vm start
 ////////////////////////////////////////////////////////////////////////////////
@@ -71,6 +72,8 @@ module azVirtualMachine './.modules/vm.bicep' = {
     tags: {
       dept: dept
       env: env
+      owner: owner
+      app: app
     }
   }
 }

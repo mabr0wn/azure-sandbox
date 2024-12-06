@@ -309,6 +309,90 @@ $adTreeView.Location = New-Object Drawing.Point(10, 350)
 $adTreeView.Size = New-Object Drawing.Size(250, 250)
 $form.Controls.Add($adTreeView)
 
+# Create and add a label for "Environment"
+$labelEnv = New-Object Windows.Forms.Label
+$labelEnv.Text = "Environment:"
+$labelEnv.Location = New-Object Drawing.Point(280, 350)
+$labelEnv.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($labelEnv)
+
+# Create and add a ComboBox for Environment
+$comboBoxEnv = New-Object Windows.Forms.ComboBox
+$comboBoxEnv.Location = New-Object Drawing.Point(380, 350)
+$comboBoxEnv.Size = New-Object Drawing.Size(200, 30)
+$comboBoxEnv.DropDownStyle = 'DropDownList'
+$form.Controls.Add($comboBoxEnv)
+$envSizes = @(
+    'prod', 'dev', 'test'
+)
+
+foreach ($envSize in $envSizes) {
+    $comboBoxEnv.Items.Add($envSize) > $null
+}
+
+# Create and add a label for "Department"
+$labelDept = New-Object Windows.Forms.Label
+$labelDept.Text = "Business Unit:"
+$labelDept.Location = New-Object Drawing.Point(280, 390)
+$labelDept.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($labelDept)
+
+# Create and add a ComboBox for Department
+$comboBoxDept = New-Object Windows.Forms.ComboBox
+$comboBoxDept.Location = New-Object Drawing.Point(380, 390)
+$comboBoxDept.Size = New-Object Drawing.Size(200, 30)
+$comboBoxDept.DropDownStyle = 'DropDownList'
+$form.Controls.Add($comboBoxDept)
+$deptSizes = @(
+    'IT', 'HR', 'Finance'
+)
+
+foreach ($deptSize in $deptSizes) {
+    $comboBoxDept.Items.Add($deptSize) > $null
+}
+
+# Create and add a label for "Owner"
+$labelOwner = New-Object Windows.Forms.Label
+$labelOwner.Text = "Owner:"
+$labelOwner.Location = New-Object Drawing.Point(280, 430)
+$labelOwner.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($labelOwner)
+
+# Create and add a ComboBox for Owner
+$comboBoxOwner = New-Object Windows.Forms.ComboBox
+$comboBoxOwner.Location = New-Object Drawing.Point(380, 430)
+$comboBoxOwner.Size = New-Object Drawing.Size(200, 30)
+$comboBoxOwner.DropDownStyle = 'DropDownList'
+$form.Controls.Add($comboBoxOwner)
+$ownerSizes = @(
+    'Server Team', 'Application Team', 'Web Team'
+)
+
+foreach ($ownerSize in $ownerSizes) {
+    $comboBoxOwner.Items.Add($ownerSize) > $null
+}
+
+# Create and add a label for "Application"
+$labelApp = New-Object Windows.Forms.Label
+$labelApp.Text = "Application:"
+$labelApp.Location = New-Object Drawing.Point(280, 470)
+$labelApp.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($labelApp)
+
+# Create and add a ComboBox for Application
+$comboBoxApp = New-Object Windows.Forms.ComboBox
+$comboBoxApp.Location = New-Object Drawing.Point(380, 470)
+$comboBoxApp.Size = New-Object Drawing.Size(200, 30)
+$comboBoxApp.DropDownStyle = 'DropDownList'
+$form.Controls.Add($comboBoxApp)
+$appSizes = @(
+    'VS Code', 'Net App', 'CommVault'
+)
+
+foreach ($appSize in $appSizes) {
+    $comboBoxApp.Items.Add($appSize) > $null
+}
+
 # Load Active Directory OUs into TreeView
 function Load-OUs {
    param (
@@ -374,6 +458,10 @@ $submitButton.Add_Click({
    $vmSize = $vmSizeComboBoxRight.SelectedItem
    $storageType = $storageTypeComboBoxRight.SelectedItem
    $os = $osComboBoxRight.SelectedItem
+   $env = $comboBoxEnv.SelectedItem
+   $owner = $comboBoxOwner.SelectedItem
+   $dept = $comboBoxDept.SelectedItem
+   $app = $comboBoxApp.SelectedItem
    $selectedOU = $selectedOUTextBox.Text
    $bicepParamFile = $bicepFilePathTextBox.Text
 
@@ -387,7 +475,24 @@ $submitButton.Add_Click({
 
    try {
        # Always include both the parameter file and inline parameters in the command
-       $bicepCommand = "az deployment group create --resource-group $resourceGroup --template-file ./main.bicep --parameters @$bicepParamFile vmName='$vmName' vnetName='$vnetName' subnetName='$snet' storageAccountName='$storageAccount' vmSize='$vmSize' storageAccountType='$storageType' OS='$os' ouDistinguishedName='$selectedOU'"
+        $bicepCommand = @"
+        az deployment group create `
+            --resource-group $resourceGroup `
+            --template-file ./main.bicep `
+            --parameters @$bicepParamFile `
+            vmName='$vmName' `
+            vnetName='$vnetName' `
+            subnetName='$snet' `
+            storageAccountName='$storageAccount' `
+            vmSize='$vmSize' `
+            storageAccountType='$storageType' `
+            OS='$os' `
+            dept='$dept' `
+            env='$env' `
+            app='$app' `
+            owner='$owner' `
+            ouDistinguishedName='$selectedOU'
+"@
 
        # Execute the Bicep deployment
        Invoke-Expression $bicepCommand

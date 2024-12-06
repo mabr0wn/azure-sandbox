@@ -3,19 +3,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 @description('Enter the department. i.e. IT')
 param dept string
-@allowed([
-  'prod'
-  'dev'
-  'test'
-])
 param env string
 @description('Enter the virtual machine name.')
 param vmName string
-@allowed([
-  'p'
-  'd'
-  't'
-])
 param suffix string
 @description('Enter the domain.')
 param domainFQDN string
@@ -27,33 +17,11 @@ param domainJoinUserPassword string
 param domainJoinSecretName string
 @description('Enter the azure location.')
 param location string
-@allowed([
-  'Server2016'
-  'Server2019'
-  'Server2022'
-  'Ubuntu1804'
-  'Ubuntu2004'
-  'Ubuntu2204'
-  'Debian11'
-  'CentOS7'
-  'CentOS8'
-  'RHEL8'
-  'RHEL9'
-  'SLES12'
-  'SLES15'
-  'AlmaLinux8'
-  'OracleLinux7'
-  'OracleLinux8'
-  'FlatcarContainerLinux'
-  'WindowsServerCore2016'
-  'WindowsServerCore2019'
-  'WindowsServerCore2022'
-])
 param OS string
 @description('Enter the OU path. i.e. OU=Departments,DC=ad,DC=contoso,DC=com')
 param ouPath string
 @description('How many vm are being deployed?')
-param virtualMachineCount int
+param virtualMachineCount int = 1 // Default value is 1 if not provided
 @description('Enter the azure vm size.')
 param vmSize string
 @description('Enter the azure local admin account.')
@@ -69,17 +37,6 @@ param kvname string
 param storageAccountName string
 param resourceGroupName string
 param sshPublicKey string
-@allowed([
-'Premium_LRS'
-'Premium_ZRS'
-'Standard_GRS'
-'Standard_GZRS'
-'Standard_LRS'
-'Standard_RAGRS'
-'Standard_RAGZRS'
-'Standard_ZRS'
-'StandardSSD_LRS'
-])
 param storageAccountType string
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -123,7 +123,7 @@ $storageTypeComboBoxRight.Location = New-Object Drawing.Point(440, 140)
 $storageTypeComboBoxRight.Size = New-Object Drawing.Size(200, 30)
 $storageTypeComboBoxRight.DropDownStyle = 'DropDownList'
 
-# Add OS options to the ComboBox
+# Add disk type options to the ComboBox
 $storageTypes = @(
     'Premium_LRS', 'Premium_ZRS', 'Standard_GRS', 'Standard_GZRS', 
     'Standard_LRS', 'Standard_RAGRS', 'Standard_RAGZRS', 'Standard_ZRS', 
@@ -165,18 +165,29 @@ foreach ($os in $osList) {
     $osComboBoxRight.Items.Add($os) > $null
 }
 
-# Extra Section (Right)
-#$labelRight = New-Object Windows.Forms.Label
-#$labelRight.Text = "Storage Group (Right)"
-#$labelRight.Location = New-Object Drawing.Point(330, 220)
-#$labelRight.Size = New-Object Drawing.Size(100, 30)
-#$form.Controls.Add($labelRight)
-
-#$comboBoxRight = New-Object Windows.Forms.ComboBox
-#$comboBoxRight.Location = New-Object Drawing.Point(440, 220)
-#$comboBoxRight.Size = New-Object Drawing.Size(200, 30)
-#$comboBoxRight.DropDownStyle = 'DropDownList'
-#$form.Controls.Add($comboBoxRight)
+ # Location Section (Right)
+ $locationLabelRight = New-Object Windows.Forms.Label
+ $locationlabelRight.Text = "Location*:"
+ $locationlabelRight.Location = New-Object Drawing.Point(330, 220)
+ $locationlabelRight.Size = New-Object Drawing.Size(100, 30)
+ $form.Controls.Add($locationLabelRight)
+ 
+ $locationComboBoxRight = New-Object Windows.Forms.ComboBox
+ $locationComboBoxRight.Location = New-Object Drawing.Point(440, 220)
+ $locationComboBoxRight.Size = New-Object Drawing.Size(200, 30)
+ $locationComboBoxRight.DropDownStyle = 'DropDownList'
+ $form.Controls.Add($locationComboBoxRight)
+ 
+ # Add location options to the ComboBox
+ $locationList = @(
+     'eastus', 'eastus2', 'westus',
+     'westus2'
+ )
+ 
+ foreach ($location in $locationList) {
+     $locationComboBoxRight.Items.Add($location) > $null
+ } 
+ 
 
 # Connect to Azure Button
 $connectButton = New-Object Windows.Forms.Button

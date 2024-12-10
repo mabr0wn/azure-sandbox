@@ -526,6 +526,7 @@ $submitButton.Add_Click({
    $vmSize = $vmSizeComboBoxRight.SelectedItem
    $storageType = $storageTypeComboBoxRight.SelectedItem
    $os = $osComboBoxRight.SelectedItem
+   $location = $locationComboBoxRight.SelectedItem
    $ip = $ipTextBoxRight.Text
    $env = $comboBoxEnv.SelectedItem
    $owner = $comboBoxOwner.SelectedItem
@@ -556,6 +557,7 @@ $submitButton.Add_Click({
             vmSize='$vmSize' `
             storageAccountType='$storageType' `
             OS='$os' `
+            location='$location' `
             IP='$ip' `
             virtualMachineCount='$vmCount' `
             dept='$dept' `

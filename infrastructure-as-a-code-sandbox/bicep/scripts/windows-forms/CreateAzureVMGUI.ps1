@@ -4,11 +4,11 @@
 .DESCRIPTION
   Uses a combination of Active Directory, Bicep, and Powershell commands to create a Virtual Server in Azure.
 .NOTES
-  Version:        2.74
+  Version:        2.86
   Author:         Matt Brown
   Creation Date:  10/8/2024
   Change Date: 12/6/2024
-  Purpose/Change: Added IP text box to bicep command.
+  Purpose/Change: Added vnet resource group, nsg, removed vm count.
   Changed By: Matt Brown
 #>
 
@@ -24,7 +24,7 @@ $form.Size = New-Object Drawing.Size(675, 730)
 $azureInfoGroupBox = New-Object Windows.Forms.GroupBox
 $azureInfoGroupBox.Text = "Azure Server Information"
 $azureInfoGroupBox.Location = New-Object Drawing.Point(5, 50) # Adjust position as needed
-$azureInfoGroupBox.Size = New-Object Drawing.Size(650, 270)  # Adjust size as needed
+$azureInfoGroupBox.Size = New-Object Drawing.Size(650, 350)  # Adjust size as needed
 $form.Controls.Add($azureInfoGroupBox)
 
 # VM Name Section (Left)
@@ -36,31 +36,31 @@ $form.Controls.Add($vmNameLabel)
 
 $vmNameTextBox = New-Object Windows.Forms.TextBox
 $vmNameTextBox.Location = New-Object Drawing.Point(120, 60)
-$vmNameTextBox.Size = New-Object Drawing.Size(100, 30)
+$vmNameTextBox.Size = New-Object Drawing.Size(200, 30)
 $form.Controls.Add($vmNameTextBox)
 
 # VM count Section (Left)
-$countLabel = New-Object Windows.Forms.Label
-$countLabel.Text = "Count:"
-$countLabel.Location = New-Object Drawing.Point(230, 60)
-$countLabel.Size = New-Object Drawing.Size(40, 20)
-$form.Controls.Add($countLabel)
+# $countLabel = New-Object Windows.Forms.Label
+# $countLabel.Text = "Count:"
+# $countLabel.Location = New-Object Drawing.Point(230, 60)
+# $countLabel.Size = New-Object Drawing.Size(40, 20)
+# $form.Controls.Add($countLabel)
 
-$countComboBox = New-Object Windows.Forms.ComboBox
-$countComboBox.Location = New-Object Drawing.Point(270, 60)
-$countComboBox.Size = New-Object Drawing.Size(50, 30)
-$countComboBox.DropDownStyle = 'DropDownList'
-$form.Controls.Add($countComboBox)
+# $countComboBox = New-Object Windows.Forms.ComboBox
+# $countComboBox.Location = New-Object Drawing.Point(270, 60)
+# $countComboBox.Size = New-Object Drawing.Size(50, 30)
+# $countComboBox.DropDownStyle = 'DropDownList'
+# $form.Controls.Add($countComboBox)
 
-$countSizes = @(
-    '1', '2', '3', '4',
-    '5', '6', '7', '8',
-    '9', '10'
-)
+# $countSizes = @(
+#     '1', '2', '3', '4',
+#     '5', '6', '7', '8',
+#     '9', '10'
+# )
 
-foreach ($countSize in $countSizes) {
-    $countComboBox.Items.Add($countSize) > $null
-}
+# foreach ($countSize in $countSizes) {
+#     $countComboBox.Items.Add($countSize) > $null
+# }
 
 # Resource Group Section (Left)
 $rgLabel = New-Object Windows.Forms.Label
@@ -88,28 +88,54 @@ $vnetComboBox.Size = New-Object Drawing.Size(200, 30)
 $vnetComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($vnetComboBox)
 
+# VNet Resource Group Section (Left)
+$vnetRGLabel = New-Object Windows.Forms.Label
+$vnetRGLabel.Text = "Vnet Resource*:"
+$vnetRGLabel.Location = New-Object Drawing.Point(10, 180)
+$vnetRGLabel.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($vnetRGLabel)
+
+$vnetRGComboBox = New-Object Windows.Forms.ComboBox
+$vnetRGComboBox.Location = New-Object Drawing.Point(120, 180)
+$vnetRGComboBox.Size = New-Object Drawing.Size(200, 30)
+$vnetRGComboBox.DropDownStyle = 'DropDownList'
+$form.Controls.Add($vnetRGComboBox)
+
 # Subnet Section (Left)
 $snetLabel = New-Object Windows.Forms.Label
 $snetLabel.Text = "Subnet Name*:"
-$snetLabel.Location = New-Object Drawing.Point(10, 180)
+$snetLabel.Location = New-Object Drawing.Point(10, 220)
 $snetLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($snetLabel)
 
 $snetComboBox = New-Object Windows.Forms.ComboBox
-$snetComboBox.Location = New-Object Drawing.Point(120, 180)
+$snetComboBox.Location = New-Object Drawing.Point(120, 220)
 $snetComboBox.Size = New-Object Drawing.Size(200, 30)
 $snetComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($snetComboBox)
 
+# Subnet NSG Section (Left)
+$snetNSGLabel = New-Object Windows.Forms.Label
+$snetNSGLabel.Text = "NSG:"
+$snetNSGLabel.Location = New-Object Drawing.Point(10, 260)
+$snetNSGLabel.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($snetNSGLabel)
+
+$snetNSGComboBox = New-Object Windows.Forms.ComboBox
+$snetNSGComboBox.Location = New-Object Drawing.Point(120, 260)
+$snetNSGComboBox.Size = New-Object Drawing.Size(200, 30)
+$snetNSGComboBox.DropDownStyle = 'DropDownList'
+$form.Controls.Add($snetNSGComboBox)
+
 # Storage Account Section (Left)
 $storageLabel = New-Object Windows.Forms.Label
 $storageLabel.Text = "Storage Group*:"
-$storageLabel.Location = New-Object Drawing.Point(10, 220)
+$storageLabel.Location = New-Object Drawing.Point(10, 300)
 $storageLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($storageLabel)
 
 $storageComboBox = New-Object Windows.Forms.ComboBox
-$storageComboBox.Location = New-Object Drawing.Point(120, 220)
+$storageComboBox.Location = New-Object Drawing.Point(120, 300)
 $storageComboBox.Size = New-Object Drawing.Size(200, 30)
 $storageComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($storageComboBox)
@@ -276,6 +302,27 @@ $rgComboBox.add_SelectedIndexChanged({
                $vnetComboBox.SelectedIndex = 0
            }
            
+           # Fetch VNets along with the associated resource group
+           $vnetRGList = az network vnet list --resource-group $selectedResourceGroup --query "[].{Name:name, ResourceGroup:resourceGroup}" -o json
+            
+           # Convert the JSON output into a PowerShell object
+           $vnetRGList = $vnetRGList | ConvertFrom-Json
+               
+           # Clear the existing items in the ComboBox
+           $vnetRGComboBox.Items.Clear()
+               
+           # Loop through each VNet and add its name to the ComboBox
+           $vnetRGList | ForEach-Object {
+               $vnetRGComboBox.Items.Add($_.ResourceGroup)
+           }
+           
+           # Check if no VNets are found
+           if ($vnetRGComboBox.Items.Count -eq 0) {
+               [System.Windows.Forms.MessageBox]::Show("No VNets found in the selected resource group!")
+           } else {
+               $vnetRGComboBox.SelectedIndex = 0
+           }
+
            # Fetch Subnets for the selected VNet
            if ($vnetComboBox.SelectedItem) {
                $selectedVnet = $vnetComboBox.SelectedItem
@@ -291,6 +338,30 @@ $rgComboBox.add_SelectedIndexChanged({
                [System.Windows.Forms.MessageBox]::Show("Please select a VNet first!")
            }
 
+           # Fetch Subnets and the associated NSG for the selected VNet
+           if ($vnetComboBox.SelectedItem) {
+               $selectedVnet = $vnetComboBox.SelectedItem
+               $subnetNSGList = az network nsg list --resource-group $selectedResourceGroup --query "[].{Name:name, NSG:id}" -o json
+               $subnetNSGList = $subnetNSGList | ConvertFrom-Json
+           
+               $snetNSGComboBox.Items.Clear()
+           
+               # Check if any subnets are found and display them with the associated NSG
+               if ($subnetNSGList.Count -eq 0) {
+                   [System.Windows.Forms.MessageBox]::Show("No subnets found in the selected VNet!")
+               } else {
+                   foreach ($nsg in $subnetNSGList) {
+                       # Add subnet name to the combo box, and display NSG ID if present
+                       $nsgInfo = if ($nsg.Name) { "$($nsg.Name)" } else { "No NSG assigned" }
+                       $snetNSGComboBox.Items.Add("$($nsgInfo)")
+                   }
+               
+                   # Select the first subnet if available
+                   $snetNSGComboBox.SelectedIndex = 0
+               }
+           } else {
+               [System.Windows.Forms.MessageBox]::Show("Please select a VNet first!")
+           }
 
            # Fetch Storage Accounts
            $storageList = az storage account list --resource-group $selectedResourceGroup --query "[].name" -o tsv
@@ -310,14 +381,18 @@ $rgComboBox.add_SelectedIndexChanged({
 # Move existing controls inside the GroupBox
 $azureInfoGroupBox.Controls.Add($vmNameLabel)
 $azureInfoGroupBox.Controls.Add($vmNameTextBox)
-$azureInfoGroupBox.Controls.Add($countLabel)
-$azureInfoGroupBox.Controls.Add($countComboBox)
+# $azureInfoGroupBox.Controls.Add($countLabel)
+# $azureInfoGroupBox.Controls.Add($countComboBox)
 $azureInfoGroupBox.Controls.Add($rgLabel)
 $azureInfoGroupBox.Controls.Add($rgComboBox)
 $azureInfoGroupBox.Controls.Add($vnetLabel)
 $azureInfoGroupBox.Controls.Add($vnetComboBox)
+$azureInfoGroupBox.Controls.Add($vnetRGLabel)
+$azureInfoGroupBox.Controls.Add($vnetRGComboBox)
 $azureInfoGroupBox.Controls.Add($snetLabel)
 $azureInfoGroupBox.Controls.Add($snetComboBox)
+$azureInfoGroupBox.Controls.Add($snetNSGLabel)
+$azureInfoGroupBox.Controls.Add($snetNSGComboBox)
 $azureInfoGroupBox.Controls.Add($storageLabel)
 $azureInfoGroupBox.Controls.Add($storageComboBox)
 $azureInfoGroupBox.Controls.Add($ipLabelRight)
@@ -334,11 +409,11 @@ $azureInfoGroupBox.Controls.Add($locationComboBoxRight)
 # Bicep Param File label and textbox
 $bicepFileLabel = New-Object Windows.Forms.Label
 $bicepFileLabel.Text = "Bicep Param File*:"
-$bicepFileLabel.Location = New-Object Drawing.Point(10, 330)
+$bicepFileLabel.Location = New-Object Drawing.Point(10, 420)
 $form.Controls.Add($bicepFileLabel)
 
 $bicepFilePathTextBox = New-Object Windows.Forms.TextBox
-$bicepFilePathTextBox.Location = New-Object Drawing.Point(120, 330)
+$bicepFilePathTextBox.Location = New-Object Drawing.Point(120, 420)
 $bicepFilePathTextBox.Size = New-Object Drawing.Size(350, 30)
 $bicepFilePathTextBox.ReadOnly = $true
 $form.Controls.Add($bicepFilePathTextBox)
@@ -346,7 +421,7 @@ $form.Controls.Add($bicepFilePathTextBox)
 # Browse button for Bicep Param File
 $fileBrowseButton = New-Object Windows.Forms.Button
 $fileBrowseButton.Text = "Browse"
-$fileBrowseButton.Location = New-Object Drawing.Point(480, 325)
+$fileBrowseButton.Location = New-Object Drawing.Point(480, 415)
 $fileBrowseButton.Size = New-Object Drawing.Size(80, 30)
 $fileBrowseButton.Add_Click({
    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -361,31 +436,31 @@ $form.Controls.Add($fileBrowseButton)
 # Active Directory OU Selection
 $ouLabel = New-Object Windows.Forms.Label
 $ouLabel.Text = "OU*:"
-$ouLabel.Location = New-Object Drawing.Point(10, 360)
+$ouLabel.Location = New-Object Drawing.Point(10, 450)
 $ouLabel.Size = New-Object Drawing.Size(30, 30)
 $form.Controls.Add($ouLabel)
 
 $selectedOUTextBox = New-Object Windows.Forms.TextBox
-$selectedOUTextBox.Location = New-Object Drawing.Point(120, 360)
+$selectedOUTextBox.Location = New-Object Drawing.Point(120, 450)
 $selectedOUTextBox.Size = New-Object Drawing.Size(350, 30)
 $selectedOUTextBox.ReadOnly = $true
 $form.Controls.Add($selectedOUTextBox)
 
 $adTreeView = New-Object Windows.Forms.TreeView
-$adTreeView.Location = New-Object Drawing.Point(10, 390)
-$adTreeView.Size = New-Object Drawing.Size(250, 250)
+$adTreeView.Location = New-Object Drawing.Point(10, 490)
+$adTreeView.Size = New-Object Drawing.Size(250, 150)
 $form.Controls.Add($adTreeView)
 
 # Create and add a label for "Environment"
 $labelEnv = New-Object Windows.Forms.Label
 $labelEnv.Text = "Environment:"
-$labelEnv.Location = New-Object Drawing.Point(280, 390)
+$labelEnv.Location = New-Object Drawing.Point(280, 490)
 $labelEnv.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($labelEnv)
 
 # Create and add a ComboBox for Environment
 $comboBoxEnv = New-Object Windows.Forms.ComboBox
-$comboBoxEnv.Location = New-Object Drawing.Point(380, 390)
+$comboBoxEnv.Location = New-Object Drawing.Point(380, 490)
 $comboBoxEnv.Size = New-Object Drawing.Size(200, 30)
 $comboBoxEnv.DropDownStyle = 'DropDownList'
 $form.Controls.Add($comboBoxEnv)
@@ -400,13 +475,13 @@ foreach ($envSize in $envSizes) {
 # Create and add a label for "Department"
 $labelDept = New-Object Windows.Forms.Label
 $labelDept.Text = "Business Unit:"
-$labelDept.Location = New-Object Drawing.Point(280, 430)
+$labelDept.Location = New-Object Drawing.Point(280, 530)
 $labelDept.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($labelDept)
 
 # Create and add a ComboBox for Department
 $comboBoxDept = New-Object Windows.Forms.ComboBox
-$comboBoxDept.Location = New-Object Drawing.Point(380, 430)
+$comboBoxDept.Location = New-Object Drawing.Point(380, 530)
 $comboBoxDept.Size = New-Object Drawing.Size(200, 30)
 $comboBoxDept.DropDownStyle = 'DropDownList'
 $form.Controls.Add($comboBoxDept)
@@ -421,13 +496,13 @@ foreach ($deptSize in $deptSizes) {
 # Create and add a label for "Owner"
 $labelOwner = New-Object Windows.Forms.Label
 $labelOwner.Text = "Owner:"
-$labelOwner.Location = New-Object Drawing.Point(280, 470)
+$labelOwner.Location = New-Object Drawing.Point(280, 570)
 $labelOwner.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($labelOwner)
 
 # Create and add a ComboBox for Owner
 $comboBoxOwner = New-Object Windows.Forms.ComboBox
-$comboBoxOwner.Location = New-Object Drawing.Point(380, 470)
+$comboBoxOwner.Location = New-Object Drawing.Point(380, 570)
 $comboBoxOwner.Size = New-Object Drawing.Size(200, 30)
 $comboBoxOwner.DropDownStyle = 'DropDownList'
 $form.Controls.Add($comboBoxOwner)
@@ -442,13 +517,13 @@ foreach ($ownerSize in $ownerSizes) {
 # Create and add a label for "Application"
 $labelApp = New-Object Windows.Forms.Label
 $labelApp.Text = "Application:"
-$labelApp.Location = New-Object Drawing.Point(280, 510)
+$labelApp.Location = New-Object Drawing.Point(280, 610)
 $labelApp.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($labelApp)
 
 # Create and add a ComboBox for Owner
 $comboBoxApp = New-Object Windows.Forms.ComboBox
-$comboBoxApp.Location = New-Object Drawing.Point(380, 510)
+$comboBoxApp.Location = New-Object Drawing.Point(380, 610)
 $comboBoxApp.Size = New-Object Drawing.Size(200, 30)
 $comboBoxApp.DropDownStyle = 'DropDownList'
 $form.Controls.Add($comboBoxApp)
@@ -518,15 +593,16 @@ $submitButton.Location = New-Object Drawing.Point(30, 650)
 $submitButton.Size = New-Object Drawing.Size(600, 30)
 $submitButton.Add_Click({
    $vmName = $vmNameTextBox.Text
-   $vmCount = $countComboBox.SelectedItem
+   #$vmCount = $countComboBox.SelectedItem
    $resourceGroup = $rgComboBox.SelectedItem
    $vnetName = $vnetComboBox.SelectedItem
+   $vNetResourceGroup = $vnetRGComboBox.SelectedItem
    $storageAccount = $storageComboBox.SelectedItem
    $snet = $snetComboBox.SelectedItem
+   $nsg = $snetNSGComboBox.SelectedItem
    $vmSize = $vmSizeComboBoxRight.SelectedItem
    $storageType = $storageTypeComboBoxRight.SelectedItem
    $os = $osComboBoxRight.SelectedItem
-   $location = $locationComboBoxRight.SelectedItem
    $ip = $ipTextBoxRight.Text
    $env = $comboBoxEnv.SelectedItem
    $owner = $comboBoxOwner.SelectedItem
@@ -534,6 +610,7 @@ $submitButton.Add_Click({
    $app = $comboBoxApp.SelectedItem
    $selectedOU = $selectedOUTextBox.Text
    $bicepParamFile = $bicepFilePathTextBox.Text
+   $location = $locationComboBoxRight.SelectedItem
 
 
    if ([string]::IsNullOrWhiteSpace($vmName) -or [string]::IsNullOrWhiteSpace($resourceGroup) -or 
@@ -545,26 +622,27 @@ $submitButton.Add_Click({
 
    try {
        # Always include both the parameter file and inline parameters in the command
-        $bicepCommand = @"
-        az deployment group create `
-            --resource-group $resourceGroup `
-            --template-file ./main.bicep `
-            --parameters @$bicepParamFile `
-            vmName='$vmName' `
-            vnetName='$vnetName' `
-            subnetName='$snet' `
-            storageAccountName='$storageAccount' `
-            vmSize='$vmSize' `
-            storageAccountType='$storageType' `
-            OS='$os' `
-            location='$location' `
-            IP='$ip' `
-            virtualMachineCount='$vmCount' `
-            dept='$dept' `
-            env='$env' `
-            app='$app' `
-            owner='$owner' `
-            ouDistinguishedName='$selectedOU'
+       $bicepCommand = @"
+       az deployment group create `
+           --resource-group $resourceGroup `
+           --template-file ./main.bicep `
+           --parameters @$bicepParamFile `
+           vmName='$vmName' `
+           vnetName='$vnetName' `
+           vNetResourceGroup=$vNetResourceGroup `
+           subnetName='$snet' `
+           NSG=$nsg `
+           storageAccountName='$storageAccount' `
+           vmSize='$vmSize' `
+           storageAccountType='$storageType' `
+           OS='$os' `
+           location='$location' `
+           IP='$ip' `
+           dept='$dept' `
+           env='$env' `
+           app='$app' `
+           owner='$owner' `
+           ouDistinguishedName='$selectedOU'
 "@
 
        # Execute the Bicep deployment

@@ -3,9 +3,9 @@ param vmUserName string
 param vmPassword string
 param vmSecretName string
 param vmName string
-param suffix string
 param virtualMachineCount int
 param vmSize string
+param NSG string
 param OS string
 param location string
 param vNetName string
@@ -19,7 +19,7 @@ param storageAccountType string
 @secure()
 param domainJoinUserPassword string
 param domainJoinSecretName string
-param scriptContent string
+//param scriptContent string
 @description('Existing keyvault name in Azure.')
 param kvname string
 param storageAccountName string
@@ -136,9 +136,10 @@ param tags object = resourceGroup().tags
 
 var subnetRef = resourceId(vNetResourceGroup, 'Microsoft.Network/virtualNetworks/subnets', vNetName, SubnetName)
 var uniqueStringSuffix = uniqueString(resourceGroup().id)
+var nsgRef = resourceId(vNetResourceGroup,'Microsoft.Network/networkSecurityGroups', NSG)
 
 resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i in range(0, virtualMachineCount): {
-  name: '${vmName}${i + 1}${suffix}'
+  name: '${vmName}${virtualMachineCount > 1 ? (i + 1) : ''}' 
   location: location
   properties: {
     hardwareProfile: {
@@ -161,10 +162,10 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
       }
     }
     osProfile: {
-      computerName: '${vmName}${i + 1}${suffix}'
-      adminUsername: vmUserName    
-      adminPassword: (OS == 'Windows' ? vmPassword : null)  // Only set password for Windows VMs
-      linuxConfiguration: (OS == 'Linux' ? {
+      computerName: '${vmName}${virtualMachineCount > 1 ? (i + 1) : ''}'
+      adminUsername: vmUserName 
+      adminPassword: (operatingSystemValues[OS].PublisherValue == 'MicrosoftWindowsServer' ? vmPassword : null)  // Only set password for Windows VMs
+      linuxConfiguration: (operatingSystemValues[OS].PublisherValue == 'Canonical' || operatingSystemValues[OS].PublisherValue == 'Debian' ? {
         disablePasswordAuthentication: true
         ssh: {
           publicKeys: [
@@ -175,14 +176,22 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
           ]
         }
       } : null)
-      windowsConfiguration: (OS == 'Windows' ? {
+      windowsConfiguration: (operatingSystemValues[OS].PublisherValue == 'MicrosoftWindowsServer' ? {
         provisionVMAgent: true
+        additionalUnattendContent: [
+          {
+            passName: 'OobeSystem'
+            componentName: 'Microsoft-Windows-Shell-Setup'
+            settingName: 'FirstLogonCommands'
+            content: 'powershell.exe -ExecutionPolicy Bypass -File "./scripts/disable-domain-firewall.ps1"'
+          }
+        ]
       } : null)
     }
     networkProfile: {
       networkInterfaces: [
         {
-          id: resourceId('Microsoft.Network/networkInterfaces', '${vmName}${i + 1}${suffix}-${uniqueStringSuffix}')
+          id: resourceId('Microsoft.Network/networkInterfaces', '${vmName}${virtualMachineCount > 1 ? (i + 1) : ''}${uniqueStringSuffix}')
         }
       ]
     }
@@ -199,7 +208,7 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
 }]
 
 resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(0, virtualMachineCount): {
-  name: '${vmName}${i + 1}${suffix}-${uniqueStringSuffix}'
+  name: '${vmName}${virtualMachineCount > 1 ? (i + 1) : ''}${uniqueStringSuffix}'
   location: location
   properties: {
     ipConfigurations: [
@@ -217,6 +226,9 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(
       }
     ]
     enableIPForwarding: false
+    networkSecurityGroup: {
+      id: nsgRef  // Use the resource ID of the existing NSG
+    }
   }
   tags: tags
   dependsOn: []
@@ -242,7 +254,7 @@ resource domainJoinUserPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07
   }
 }
 resource windowsDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): if (operatingSystemValues[OS].SkuValue == '2016-Datacenter' || operatingSystemValues[OS].SkuValue == '2019-Datacenter' || operatingSystemValues[OS].SkuValue == '2022-Datacenter') {
-  name: toLower('${vmName}${i + 1}${suffix}/joindomain')
+  name: toLower('${vmName}${virtualMachineCount > 1 ? (i + 1) : ''}/joindomain')
   location: location
   properties: {
     publisher: 'Microsoft.Compute'
@@ -267,7 +279,7 @@ resource windowsDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03
 }]
 
 resource linuxDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-01' = [for i in range(0, virtualMachineCount): if (operatingSystemValues[OS].OfferValue == 'UbuntuServer') {
-  name: toLower('${vmName}${i + 1}${suffix}/joindomain')
+  name: toLower('${vmName}${virtualMachineCount > 1 ? (i + 1) : ''}/joindomain')
   location: location
   properties: {
     publisher: 'Microsoft.Azure.Extensions'
@@ -301,13 +313,13 @@ resource existingStorageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' e
 }
 
 
-module deploymentScript '../../create-deployment-script/.modules/externalScript.bicep' = {
-  name: 'runPowerShellExternalScript'
-  params: {
-    location: location
-    scriptContentParam: scriptContent
-  }
-  dependsOn: [
-    windowsDomainJoin
-  ]
-}
+// module deploymentScript '../../create-deployment-script/.modules/externalScript.bicep' = {
+//   name: 'runPowerShellExternalScript'
+//   params: {
+//     location: location
+//     scriptContentParam: scriptContent
+//   }
+//   dependsOn: [
+//     windowsDomainJoin
+//   ]
+// }

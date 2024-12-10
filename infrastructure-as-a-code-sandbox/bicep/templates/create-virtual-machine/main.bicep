@@ -8,7 +8,6 @@ param owner string
 param app string
 @description('Enter the virtual machine name.')
 param vmName string
-param suffix string
 @description('Enter the domain.')
 param domainFQDN string
 @description('Enter the admin account username.')
@@ -21,6 +20,7 @@ param domainJoinSecretName string
 param location string
 param OS string
 param IP string
+param NSG string
 @description('Enter the OU path. i.e. OU=Departments,DC=ad,DC=contoso,DC=com')
 param ouPath string
 @description('How many vm are being deployed?')
@@ -34,8 +34,8 @@ param vmPassword string
 param vmSecretName string
 param subnetName string
 param vnetName string
-param vNetRG string
-param scriptContent string
+param vNetResourceGroup string
+//param scriptContent string
 param kvname string
 param storageAccountName string
 param resourceGroupName string
@@ -48,7 +48,6 @@ module azVirtualMachine './.modules/vm.bicep' = {
   name: 'azVirtualMachine'
   params: {
     vmName: vmName
-    suffix: suffix
     domainFQDN: domainFQDN
     domainJoinUserName: domainJoinUserName
     domainJoinUserPassword: domainJoinUserPassword
@@ -56,6 +55,7 @@ module azVirtualMachine './.modules/vm.bicep' = {
     location: location
     OS: OS
     IP: IP
+    NSG: NSG
     ouPath: ouPath
     SubnetName: subnetName
     virtualMachineCount: virtualMachineCount
@@ -65,9 +65,9 @@ module azVirtualMachine './.modules/vm.bicep' = {
     vmSecretName: vmSecretName
     vmSize: vmSize
     vNetName: vnetName
-    vNetResourceGroup: vNetRG
+    vNetResourceGroup: vNetResourceGroup
     storageAccountType: storageAccountType
-    scriptContent: scriptContent
+    //scriptContent: scriptContent
     resourceGroupName: resourceGroupName
     sshPublicKey: sshPublicKey
     storageAccountName: storageAccountName

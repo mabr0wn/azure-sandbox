@@ -4,11 +4,11 @@
 .DESCRIPTION
   Uses a combination of Active Directory, Bicep, and Powershell commands to create a Virtual Server in Azure.
 .NOTES
-  Version:        2.86
+  Version:        3.96
   Author:         Matt Brown
   Creation Date:  10/8/2024
-  Change Date: 12/6/2024
-  Purpose/Change: Added vnet resource group, nsg, removed vm count.
+  Change Date: 1/1/2025
+  Purpose/Change: Updated vnet to have it own seperate rg in case your vnet is not in same rg as your vms.
   Changed By: Matt Brown
 #>
 
@@ -75,31 +75,31 @@ $rgComboBox.Size = New-Object Drawing.Size(200, 30)
 $rgComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($rgComboBox)
 
-# VNet Section (Left)
-$vnetLabel = New-Object Windows.Forms.Label
-$vnetLabel.Text = "Vnet Name*:"
-$vnetLabel.Location = New-Object Drawing.Point(10, 140)
-$vnetLabel.Size = New-Object Drawing.Size(100, 30)
-$form.Controls.Add($vnetLabel)
-
-$vnetComboBox = New-Object Windows.Forms.ComboBox
-$vnetComboBox.Location = New-Object Drawing.Point(120, 140)
-$vnetComboBox.Size = New-Object Drawing.Size(200, 30)
-$vnetComboBox.DropDownStyle = 'DropDownList'
-$form.Controls.Add($vnetComboBox)
-
 # VNet Resource Group Section (Left)
 $vnetRGLabel = New-Object Windows.Forms.Label
 $vnetRGLabel.Text = "Vnet Resource*:"
-$vnetRGLabel.Location = New-Object Drawing.Point(10, 180)
+$vnetRGLabel.Location = New-Object Drawing.Point(10, 140)
 $vnetRGLabel.Size = New-Object Drawing.Size(100, 30)
 $form.Controls.Add($vnetRGLabel)
 
 $vnetRGComboBox = New-Object Windows.Forms.ComboBox
-$vnetRGComboBox.Location = New-Object Drawing.Point(120, 180)
+$vnetRGComboBox.Location = New-Object Drawing.Point(120, 140)
 $vnetRGComboBox.Size = New-Object Drawing.Size(200, 30)
 $vnetRGComboBox.DropDownStyle = 'DropDownList'
 $form.Controls.Add($vnetRGComboBox)
+
+# VNet Section (Left)
+$vnetLabel = New-Object Windows.Forms.Label
+$vnetLabel.Text = "Vnet Name*:"
+$vnetLabel.Location = New-Object Drawing.Point(10, 180)
+$vnetLabel.Size = New-Object Drawing.Size(100, 30)
+$form.Controls.Add($vnetLabel)
+
+$vnetComboBox = New-Object Windows.Forms.ComboBox
+$vnetComboBox.Location = New-Object Drawing.Point(120, 180)
+$vnetComboBox.Size = New-Object Drawing.Size(200, 30)
+$vnetComboBox.DropDownStyle = 'DropDownList'
+$form.Controls.Add($vnetComboBox)
 
 # Subnet Section (Left)
 $snetLabel = New-Object Windows.Forms.Label
@@ -264,32 +264,49 @@ $connectButton.Text = "Connect to Azure"
 $connectButton.Location = New-Object Drawing.Point(50, 10)
 $connectButton.Size = New-Object Drawing.Size(550, 30)
 $connectButton.Add_Click({
-   # Login to Azure using Azure CLI
-   $loginResult = az login 2>$null
-   if ($loginResult) {
-       [System.Windows.Forms.MessageBox]::Show("Connected to Azure.")
-       
-       # Fetch Resource Groups
-       $rgList = az group list --query "[].name" -o tsv
-       
-       # Populate the dropdown with resource groups
+    # Login to Azure using Azure CLI
+    $loginResult = az login 2>$null
+    if ($loginResult) {
+        [System.Windows.Forms.MessageBox]::Show("Connected to Azure.")
+        
+        # Fetch Resource Groups
+        $rgList = az group list --query "[].name" -o tsv
+        
+       # Populate the first dropdown with resource groups
        $rgComboBox.Items.Clear()
-       $rgList | ForEach-Object { $rgComboBox.Items.Add($_) }
-       
+       $rgList | ForEach-Object {
+           $rgComboBox.Items.Add($_)
+       }
+
+       # Add a delay before populating the second dropdown
+       Start-Sleep -Milliseconds 500
+
+       # Populate the second dropdown with resource groups
+       $vnetRGComboBox.Items.Clear()
+       $rgList | ForEach-Object {
+           $vnetRGComboBox.Items.Add($_)
+       }
+
        if ($rgComboBox.Items.Count -eq 0) {
            [System.Windows.Forms.MessageBox]::Show("No resource groups found!")
        } else {
            $rgComboBox.SelectedIndex = 0
        }
+
+       if ($vnetRGComboBox.Items.Count -eq 0) {
+           [System.Windows.Forms.MessageBox]::Show("No resource groups found for VNets!")
+       } else {
+           $vnetRGComboBox.SelectedIndex = 0
+       }
    } else {
        [System.Windows.Forms.MessageBox]::Show("Failed to connect to Azure.")
    }
-})
-$form.Controls.Add($connectButton)
+ })
+ $form.Controls.Add($connectButton)
 
 # Fetch VNets and Storage Accounts when a Resource Group is selected
-$rgComboBox.add_SelectedIndexChanged({
-   $selectedResourceGroup = $rgComboBox.SelectedItem
+$vnetRGComboBox.add_SelectedIndexChanged({
+   $selectedResourceGroup = $vnetRGComboBox.SelectedItem
    if ($selectedResourceGroup) {
        try {
            # Fetch VNets
@@ -300,27 +317,6 @@ $rgComboBox.add_SelectedIndexChanged({
                [System.Windows.Forms.MessageBox]::Show("No VNets found in the selected resource group!")
            } else {
                $vnetComboBox.SelectedIndex = 0
-           }
-           
-           # Fetch VNets along with the associated resource group
-           $vnetRGList = az network vnet list --resource-group $selectedResourceGroup --query "[].{Name:name, ResourceGroup:resourceGroup}" -o json
-            
-           # Convert the JSON output into a PowerShell object
-           $vnetRGList = $vnetRGList | ConvertFrom-Json
-               
-           # Clear the existing items in the ComboBox
-           $vnetRGComboBox.Items.Clear()
-               
-           # Loop through each VNet and add its name to the ComboBox
-           $vnetRGList | ForEach-Object {
-               $vnetRGComboBox.Items.Add($_.ResourceGroup)
-           }
-           
-           # Check if no VNets are found
-           if ($vnetRGComboBox.Items.Count -eq 0) {
-               [System.Windows.Forms.MessageBox]::Show("No VNets found in the selected resource group!")
-           } else {
-               $vnetRGComboBox.SelectedIndex = 0
            }
 
            # Fetch Subnets for the selected VNet

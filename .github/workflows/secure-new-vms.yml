@@ -21,7 +21,7 @@ jobs:
       - name: Check for Recently Created VMs
         id: check_vms
         run: |
-          NEW_VM=$(az vm list --resource-group MY_RESOURCE_GROUP \
+          NEW_VM=$(az vm list --resource-group ${{ secrets.AZURE_RG }} \
           --query "[?timeCreated >= '$(date -d '-10 minutes' --utc +%Y-%m-%dT%H:%M:%SZ)'].{Name:name}" -o tsv)
           
           if [ -z "$NEW_VM" ]; then

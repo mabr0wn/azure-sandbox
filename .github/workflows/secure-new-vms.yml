@@ -1,0 +1,67 @@
+name: Secure New Azure VMs
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"  # Runs every 10 minutes to check for new VMs
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  check-new-vms:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # 1️⃣ Detect New VMs
+      - name: Check for Recently Created VMs
+        id: check_vms
+        run: |
+          NEW_VM=$(az vm list --resource-group MY_RESOURCE_GROUP \
+          --query "[?timeCreated >= '$(date -d '-10 minutes' --utc +%Y-%m-%dT%H:%M:%SZ)'].{Name:name}" -o tsv)
+          
+          if [ -z "$NEW_VM" ]; then
+            echo "No new VMs detected."
+            exit 0
+          else
+            echo "New VM detected: $NEW_VM"
+            echo "VM_NAME=$NEW_VM" >> $GITHUB_ENV
+          fi
+
+      # 2️⃣ Run Azure Policy Compliance Scan
+      - name: Run Azure Policy Compliance Scan
+        if: env.VM_NAME != ''
+        run: |
+          az policy state summarize \
+            --resource "/subscriptions/MY_SUB_ID/resourceGroups/MY_RESOURCE_GROUP/providers/Microsoft.Compute/virtualMachines/${{ env.VM_NAME }}" \
+            --output table
+
+      # 3️⃣ Apply OS Updates via Azure Update Manager
+      - name: Apply Windows Updates
+        if: env.VM_NAME != ''
+        run: |
+          az update-management machine-update install \
+            --resource-group MY_RESOURCE_GROUP \
+            --machine-name ${{ env.VM_NAME }} \
+            --windows-category SecurityAndCritical \
+            --reboot-setting IfRequired
+
+    #   # 4️⃣ Enable Microsoft Defender for Servers
+    #   - name: Enable Microsoft Defender
+    #     if: env.VM_NAME != ''
+    #     run: |
+    #       az security pricing create \
+    #         --name VirtualMachines \
+    #         --tier Standard
+
+    #   # 5️⃣ Onboard VM to Microsoft Sentinel
+    #   - name: Onboard VM to Microsoft Sentinel
+    #     if: env.VM_NAME != ''
+    #     run: |
+    #       az security workspace-setting create \
+    #         --name SentinelWorkspace \
+    #         --target-workspace /subscriptions/MY_SUB_ID/resourceGroups/MY_RG/providers/Microsoft.OperationalInsights/workspaces/MY_WORKSPACE

@@ -25,3 +25,4 @@ jobs:
         template: ./infrastructure-as-a-code-sandbox/bicep/create-resource-group/main.bicep
         parameters: 'storagePrefix=skynet location=eastus uniqueStorageName=test storageSKU=Standard_LRS'
         failOnStdErr: false
+        scope: /subscriptions/${{ secrets.AZURE_SUBSCRIPTION }}/resourceGroups/${{ secrets.AZURE_RG }}

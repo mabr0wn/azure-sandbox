@@ -1,8 +1,9 @@
 name: Secure New Azure VMs
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"  # Runs every 10 minutes to check for new VMs
+  # Remove the schedule section entirely to stop it from running automatically
+  # schedule:
+  #   - cron: "*/10 * * * *"  # Runs every 10 minutes to check for new VMs
   workflow_dispatch:  # Allows manual triggering
 
 jobs:

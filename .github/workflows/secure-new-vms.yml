@@ -38,7 +38,7 @@ jobs:
         if: env.VM_NAME != ''
         run: |
           az policy state summarize \
-            --resource "/subscriptions/MY_SUB_ID/resourceGroups/MY_RESOURCE_GROUP/providers/Microsoft.Compute/virtualMachines/${{ env.VM_NAME }}" \
+            --resource "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RG }}/providers/Microsoft.Compute/virtualMachines/${{ env.VM_NAME }}" \
             --output table
 
       # 3️⃣ Apply OS Updates via Azure Update Manager
@@ -46,23 +46,23 @@ jobs:
         if: env.VM_NAME != ''
         run: |
           az update-management machine-update install \
-            --resource-group MY_RESOURCE_GROUP \
+            --resource-group ${{ secrets.AZURE_RG }} \
             --machine-name ${{ env.VM_NAME }} \
             --windows-category SecurityAndCritical \
             --reboot-setting IfRequired
 
-    #   # 4️⃣ Enable Microsoft Defender for Servers
-    #   - name: Enable Microsoft Defender
-    #     if: env.VM_NAME != ''
-    #     run: |
-    #       az security pricing create \
-    #         --name VirtualMachines \
-    #         --tier Standard
+      # 4️⃣ Enable Microsoft Defender for Servers
+      - name: Enable Microsoft Defender
+        if: env.VM_NAME != ''
+        run: |
+          az security pricing create \
+            --name VirtualMachines \
+            --tier Standard
 
-    #   # 5️⃣ Onboard VM to Microsoft Sentinel
-    #   - name: Onboard VM to Microsoft Sentinel
-    #     if: env.VM_NAME != ''
-    #     run: |
-    #       az security workspace-setting create \
-    #         --name SentinelWorkspace \
-    #         --target-workspace /subscriptions/MY_SUB_ID/resourceGroups/MY_RG/providers/Microsoft.OperationalInsights/workspaces/MY_WORKSPACE
+      # 5️⃣ Onboard VM to Microsoft Sentinel
+      - name: Onboard VM to Microsoft Sentinel
+        if: env.VM_NAME != ''
+        run: |
+          az security workspace-setting create \
+            --name SentinelWorkspace \
+            --target-workspace /subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RG }}/providers/Microsoft.OperationalInsights/workspaces/${{ secrets.AZURE_WORKSPACE }}

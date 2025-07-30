@@ -1,4 +1,4 @@
-name: Deploy Azure Resource Group Bicep File
+name: Deploy Azure Resource Group from Bicep (compiled JSON)
 
 on:
   push:
@@ -11,20 +11,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Log into Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: Log into Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy Bicep using inline parameters
-        run: |
-          set -eo pipefail  # safer shell
-          az deployment sub create \
-            --name deploy-rg \
-            --location eastus \
-            --template-file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep \
-            --parameters baseName="skynet" locations='["eastus"]' \
-            --only-show-errors
+    - name: Compile Bicep to JSON
+      run: |
+        az bicep build \
+          --file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep \
+          --out ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.json
+
+    - name: Deploy compiled JSON with inline parameters
+      run: |
+        set -eo pipefail
+        az deployment sub create \
+          --location eastus \
+          --template-file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.json \
+          --parameters baseName="skynet" locations='["eastus"]' \
+          --only-show-errors

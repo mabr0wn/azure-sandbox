@@ -3,8 +3,8 @@ name: Deploy Azure Resource Group Bicep File
 on:
   push:
     paths:
-      - '**/*.bicepparam'  # Trigger only when .bicepparam files are pushed
-  workflow_dispatch:
+      - '**/*.bicepparam'  # Trigger when .bicepparam files are updated
+  workflow_dispatch:        # Manual trigger support
 
 jobs:
   build-and-deploy:
@@ -19,8 +19,15 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy Bicep using .bicepparam file
+      - name: Build .bicepparam to JSON
+        run: |
+          az bicep build-params \
+            --file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicepparam \
+            --outfile ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.parameters.json
+
+      - name: Deploy Bicep using compiled parameters
         run: |
           az deployment sub create \
             --location eastus \
-            --template-file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicepparam
+            --template-file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep \
+            --parameters @./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.parameters.json

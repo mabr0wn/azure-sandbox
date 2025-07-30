@@ -3,8 +3,8 @@ name: Deploy Azure Resource Group Bicep File
 on:
   push:
     paths:
-      - '**/*.bicepparam'  # Trigger when .bicepparam files are updated
-  workflow_dispatch:        # Manual trigger support
+      - 'infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/**'
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -19,15 +19,12 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build .bicepparam to JSON
+      - name: Deploy Bicep using inline parameters
         run: |
-          az bicep build-params \
-            --file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicepparam \
-            --outfile ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.parameters.json
-
-      - name: Deploy Bicep using compiled parameters
-        run: |
+          set -eo pipefail  # safer shell
           az deployment sub create \
+            --name deploy-rg \
             --location eastus \
             --template-file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep \
-            --parameters @./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.parameters.json
+            --parameters baseName="skynet" locations='["eastus"]' \
+            --only-show-errors

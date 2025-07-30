@@ -1,6 +1,6 @@
 using 'main.bicep'
 
-param baseName = 'sandbox-dev-3'
+param baseName = 'skynet-dev-rg'
 param locations = [
 'eastus'
 ]

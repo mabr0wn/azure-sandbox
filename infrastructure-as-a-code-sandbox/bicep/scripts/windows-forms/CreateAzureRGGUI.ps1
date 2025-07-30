@@ -111,7 +111,6 @@ $(($locations | ForEach-Object { "'$_'" }) -join "`n")
         [System.Windows.Forms.MessageBox]::Show("Error: $_")
     }
 })
-
 $form.Controls.Add($submitButton)
 
 # Run the form

@@ -1,10 +1,15 @@
-name: Deploy Bicep to Subscription
+name: Deploy Azure Resource Group via Bicep
 
 on:
   push:
     paths:
-      - '**/*.bicepparam'
+      - 'infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/**'
+  pull_request:
   workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
@@ -14,17 +19,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Log into Azure
+      - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy Bicep using .bicepparam
+      - name: Deploy RG template
         uses: azure/bicep-deploy@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          bicep-file: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep
-          parameter-file: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicepparam
-          type: subscription  # 👈 required for az deployment sub create
+          type: deployment
+          operation: create
+          scope: subscription
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION }}
+          resource-group-name: ${{ secrets.AZURE_RG }}
+          template-file: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep
+          parameters-file: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicepparam
+          location: eastus

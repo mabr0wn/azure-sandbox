@@ -1,19 +1,19 @@
-name: Deploy Azure resource group Bicep file
+name: Deploy Azure Resource Group Bicep File
 
 on:
   push:
     paths:
       - 'infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/**'
-  workflow_dispatch:  # Allows manual triggering
-  pull_request:       # Trigger on PRs
+  workflow_dispatch:        # Allows manual triggering
+  pull_request:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    steps:
 
+    steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Log into Azure
       uses: azure/login@v1
@@ -25,8 +25,11 @@ jobs:
       with:
         scope: subscription
         subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
-        region: eastus
-        #resourceGroupName: ${{ secrets.AZURE_RG }}
+        region: eastus  # or match the region you want the RG created in
         template: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep
-        parameters: 'baseName=skynet locations=eastus'
+        parameters: >
+          {
+            "baseName": { "value": "skynet" },
+            "locations": { "value": ["eastus"] }
+          }
         failOnStdErr: false

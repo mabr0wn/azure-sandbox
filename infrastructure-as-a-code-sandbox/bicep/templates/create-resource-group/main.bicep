@@ -1,10 +1,12 @@
-param location string
-param resrouceGroupName string
-param deployStorageAccount bool
+param baseName string
+param locations array
 
 targetScope = 'subscription'
 
-resource resourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' = if (deployStorageAccount) {
-  name: resrouceGroupName
-  location: location
-}
+module rgModule 'modules/resource.bicep' = [for loc in locations: {
+  name: 'rgDeploy-${loc}'
+  params: {
+    resourceGroupName: '${baseName}-${loc}'
+    location: loc
+  }
+}]

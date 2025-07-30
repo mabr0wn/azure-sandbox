@@ -1,8 +1,11 @@
 name: Deploy Azure resource group Bicep file
 
 on:
+  push:
+    paths:
+      - 'infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/**'
   workflow_dispatch:  # Allows manual triggering
-  pull_request:  # Trigger on PRs
+  pull_request:       # Trigger on PRs
 
 jobs:
   build-and-deploy:
@@ -10,7 +13,7 @@ jobs:
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@v2  # Use v2, not @main
+      uses: actions/checkout@v2
 
     - name: Log into Azure
       uses: azure/login@v1
@@ -22,7 +25,7 @@ jobs:
       with:
         subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
         resourceGroupName: ${{ secrets.AZURE_RG }}
-        template: ./infrastructure-as-a-code-sandbox/bicep/create-resource-group/main.bicep
+        template: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep
         parameters: 'storagePrefix=skynet location=eastus uniqueStorageName=test storageSKU=Standard_LRS'
         failOnStdErr: false
         scope: /subscriptions/${{ secrets.AZURE_SUBSCRIPTION }}/resourceGroups/${{ secrets.AZURE_RG }}

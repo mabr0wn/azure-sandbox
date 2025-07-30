@@ -102,7 +102,10 @@ $(($locations | ForEach-Object { "'$_'" }) -join "`n")
         git commit -m "Auto-create RGs: $baseName in [$($locations -join ', ')]"
         git push origin main
 
-        [System.Windows.Forms.MessageBox]::Show("RG param file committed and pushed to GitHub!")
+        $result = [System.Windows.Forms.MessageBox]::Show("RG param file committed and pushed to GitHub!", "Success", "OK", "Information")
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            $form.Close()
+        }
 
     } catch {
         [System.Windows.Forms.MessageBox]::Show("Error: $_")

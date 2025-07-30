@@ -33,24 +33,13 @@ $form.Controls.Add($locationListBox)
     [void]$locationListBox.Items.Add($_)
 }
 
-<<<<<<< HEAD
-# Repo path
-=======
 # Repo path label
->>>>>>> main
 $repoPathLabel = New-Object Windows.Forms.Label
 $repoPathLabel.Text = "Git Repo Path:"
 $repoPathLabel.Location = New-Object Drawing.Point(20, 180)
 $repoPathLabel.Size = New-Object Drawing.Size(150, 30)
 $form.Controls.Add($repoPathLabel)
 
-<<<<<<< HEAD
-$repoPathBox = New-Object Windows.Forms.TextBox
-$repoPathBox.Location = New-Object Drawing.Point(180, 180)
-$repoPathBox.Size = New-Object Drawing.Size(250, 30)
-$form.Controls.Add($repoPathBox)
-
-=======
 # Repo path textbox
 $repoPathBox = New-Object Windows.Forms.TextBox
 $repoPathBox.Location = New-Object Drawing.Point(180, 180)
@@ -72,7 +61,6 @@ $browseButton.Add_Click({
     }
 })
 
->>>>>>> main
 # Submit Button
 $submitButton = New-Object Windows.Forms.Button
 $submitButton.Text = "Generate & Push"
@@ -93,12 +81,9 @@ $submitButton.Add_Click({
         return
     }
 
-<<<<<<< HEAD
-=======
     # .bicepparam file created in same folder as main.bicep
     $paramPath = Join-Path $repoPath "main.bicepparam"
 
->>>>>>> main
     # Construct .bicepparam content
     $paramContent = @"
 using 'main.bicep'
@@ -110,10 +95,6 @@ $(($locations | ForEach-Object { "'$_'" }) -join "`n")
 "@
 
     try {
-<<<<<<< HEAD
-        $paramPath = Join-Path $repoPath ".bicep\main.bicepparam"
-=======
->>>>>>> main
         Set-Content -Path $paramPath -Value $paramContent -Force
 
         Set-Location $repoPath
@@ -121,23 +102,15 @@ $(($locations | ForEach-Object { "'$_'" }) -join "`n")
         git commit -m "Auto-create RGs: $baseName in [$($locations -join ', ')]"
         git push origin main
 
-<<<<<<< HEAD
-        [System.Windows.Forms.MessageBox]::Show("RG param file committed and pushed to GitHub!")
-=======
         $result = [System.Windows.Forms.MessageBox]::Show("RG param file committed and pushed to GitHub!", "Success", "OK", "Information")
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             $form.Close()
         }
->>>>>>> main
 
     } catch {
         [System.Windows.Forms.MessageBox]::Show("Error: $_")
     }
 })
-<<<<<<< HEAD
-=======
-
->>>>>>> main
 $form.Controls.Add($submitButton)
 
 # Run the form

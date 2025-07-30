@@ -25,6 +25,7 @@ jobs:
       with:
         scope: subscription
         subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
+        region: eastus
         #resourceGroupName: ${{ secrets.AZURE_RG }}
         template: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep
         parameters: 'storagePrefix=skynet location=eastus uniqueStorageName=test storageSKU=Standard_LRS'

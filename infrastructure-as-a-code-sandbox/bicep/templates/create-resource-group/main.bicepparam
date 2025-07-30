@@ -1,6 +1,6 @@
 using 'main.bicep'
 
-param baseName = 'sandbox-dev-rg-1'
+param baseName = 'sandbox-dev-rg-'
 param locations = [
 'eastus'
 ]

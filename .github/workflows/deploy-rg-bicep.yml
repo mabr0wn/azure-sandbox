@@ -23,5 +23,4 @@ jobs:
         run: |
           az deployment sub create \
             --location eastus \
-            --template-file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep \
-            --parameters @./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicepparam
+            --template-file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicepparam

@@ -56,6 +56,24 @@ jobs:
           az vm deallocate \
             --resource-group ${{ secrets.AZURE_RG }} \
             --name ${{ env.VM_NAME }}
+            
+    # Quarantine Non-Compliant VM Instead of Shutdown
+      - name: Quarantine Non-Compliant VM
+        if: env.non_compliant == 'true'
+        run: |
+          echo "Non-compliant VM detected. Moving ${{ env.VM_NAME }} to quarantine."
+          NIC_ID=$(az vm show \
+            --resource-group ${{ secrets.AZURE_RG }} \
+            --name ${{ env.VM_NAME }} \
+            --query 'networkProfile.networkInterfaces[0].id' -o tsv)
+
+          az network nic update \
+            --ids $NIC_ID \
+            --network-security-group ${{ secrets.QUARANTINE_NSG_ID }}
+
+          az resource tag \
+            --ids "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ secrets.AZURE_RG }}/providers/Microsoft.Compute/virtualMachines/${{ env.VM_NAME }}" \
+            --tags quarantine=true reason=non_compliance
 
       # 4️⃣ Apply OS Updates via Azure Update Manager
       - name: Apply Windows Updates

@@ -1,28 +1,27 @@
-name: Deploy Azure resource group Bicep file
+name: Deploy Azure Resource Group Bicep File
 
 on:
-  workflow_dispatch:  # Allows manual triggering
-  pull_request:  # Trigger on PRs
+  push:
+    paths:
+      - '**/*.bicepparam'  # Trigger only when .bicepparam files are pushed
+  workflow_dispatch:        # Optional manual trigger
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    steps:
 
+    steps:
     - name: Checkout code
-      uses: actions/checkout@v2  # Use v2, not @main
+      uses: actions/checkout@v3
 
     - name: Log into Azure
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Deploy Bicep file
-      uses: azure/arm-deploy@v1
-      with:
-        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
-        resourceGroupName: ${{ secrets.AZURE_RG }}
-        template: ./infrastructure-as-a-code-sandbox/bicep/create-resource-group/main.bicep
-        parameters: 'storagePrefix=skynet location=eastus uniqueStorageName=test storageSKU=Standard_LRS'
-        failOnStdErr: false
-        scope: /subscriptions/${{ secrets.AZURE_SUBSCRIPTION }}/resourceGroups/${{ secrets.AZURE_RG }}
+    - name: Deploy Bicep using param file
+      run: |
+        az deployment sub create \
+          --location eastus \
+          --template-file ./infrastructure-as-a-code-sandbox/bicep/create-resource-group/main.bicep \
+          --parameters @./infrastructure-as-a-code-sandbox/bicep/create-resource-group/main.bicepparam

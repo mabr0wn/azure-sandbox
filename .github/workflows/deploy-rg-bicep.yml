@@ -23,7 +23,7 @@ jobs:
       run: |
         az bicep build \
           --file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep \
-          --out ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.json
+          --outfile ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.json
 
     - name: Deploy compiled JSON with inline parameters
       run: |

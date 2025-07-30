@@ -1,14 +1,29 @@
+<<<<<<< HEAD
 name: Deploy Azure Resource Group Bicep File
+=======
+name: Deploy Azure Resource Group via Bicep
+>>>>>>> main
 
 on:
   push:
     paths:
+<<<<<<< HEAD
       - '**/*.bicepparam'  # Trigger only when .bicepparam files are pushed
   workflow_dispatch:        # Optional manual trigger
+=======
+      - 'infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+>>>>>>> main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+<<<<<<< HEAD
 
     steps:
     - name: Checkout code
@@ -25,3 +40,26 @@ jobs:
           --location eastus \
           --template-file ./infrastructure-as-a-code-sandbox/bicep/create-resource-group/main.bicep \
           --parameters @./infrastructure-as-a-code-sandbox/bicep/create-resource-group/main.bicepparam
+=======
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy RG template
+        uses: azure/bicep-deploy@v1
+        with:
+          type: deployment
+          operation: create
+          scope: subscription
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION }}
+          resource-group-name: ${{ secrets.AZURE_RG }}
+          template-file: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep
+          parameters-file: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicepparam
+          location: eastus
+>>>>>>> main

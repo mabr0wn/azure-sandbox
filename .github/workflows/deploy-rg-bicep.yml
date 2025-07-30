@@ -1,35 +1,29 @@
-name: Deploy Azure Resource Group from Bicep (compiled JSON)
+name: Deploy Azure Resource Group Bicep File
 
 on:
   push:
     paths:
-      - 'infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/**'
+      - '**/*.bicepparam'
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Log into Azure
+    - name: Azure Login
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Compile Bicep to JSON
-      run: |
-        az bicep build \
-          --file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep \
-          --outfile ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.json
-
-    - name: Deploy compiled JSON with inline parameters
-      run: |
-        set -eo pipefail
-        az deployment sub create \
-          --location eastus \
-          --template-file ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.json \
-          --parameters baseName="skynet" locations='["eastus"]' \
-          --only-show-errors
+    - name: Deploy Bicep using .bicepparam file
+      uses: azure/bicep-deploy@v1
+      with:
+        scope: subscription
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION }}
+        location: eastus
+        template-file: infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep
+        parameters-file: infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicepparam

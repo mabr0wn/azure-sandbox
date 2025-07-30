@@ -27,7 +27,7 @@ jobs:
         subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
         region: eastus  # or match the region you want the RG created in
         template: ./infrastructure-as-a-code-sandbox/bicep/templates/create-resource-group/main.bicep
-        parameters: >
+        parameters: |
           {
             "baseName": { "value": "skynet" },
             "locations": { "value": ["eastus"] }

@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Drawing
 
 $form = New-Object Windows.Forms.Form
 $form.Text = "Create Azure Resource Groups"
-$form.Size = New-Object Drawing.Size(500, 300)
+$form.Size = New-Object Drawing.Size(500, 350)
 
 # RG base name
 $rgLabel = New-Object Windows.Forms.Label
@@ -17,15 +17,27 @@ $rgTextBox.Location = New-Object Drawing.Point(180, 30)
 $rgTextBox.Size = New-Object Drawing.Size(250, 30)
 $form.Controls.Add($rgTextBox)
 
+# RG count
+$countLabel = New-Object Windows.Forms.Label
+$countLabel.Text = "Resource Group Count:"
+$countLabel.Location = New-Object Drawing.Point(20, 70)
+$countLabel.Size = New-Object Drawing.Size(150, 30)
+$form.Controls.Add($countLabel)
+
+$countTextBox = New-Object Windows.Forms.TextBox
+$countTextBox.Location = New-Object Drawing.Point(180, 70)
+$countTextBox.Size = New-Object Drawing.Size(250, 30)
+$form.Controls.Add($countTextBox)
+
 # Location selection
 $locLabel = New-Object Windows.Forms.Label
 $locLabel.Text = "Select Locations:"
-$locLabel.Location = New-Object Drawing.Point(20, 70)
+$locLabel.Location = New-Object Drawing.Point(20, 110)
 $locLabel.Size = New-Object Drawing.Size(150, 30)
 $form.Controls.Add($locLabel)
 
 $locationListBox = New-Object Windows.Forms.CheckedListBox
-$locationListBox.Location = New-Object Drawing.Point(180, 70)
+$locationListBox.Location = New-Object Drawing.Point(180, 110)
 $locationListBox.Size = New-Object Drawing.Size(250, 100)
 $form.Controls.Add($locationListBox)
 
@@ -36,20 +48,20 @@ $form.Controls.Add($locationListBox)
 # Repo path label
 $repoPathLabel = New-Object Windows.Forms.Label
 $repoPathLabel.Text = "Git Repo Path:"
-$repoPathLabel.Location = New-Object Drawing.Point(20, 180)
+$repoPathLabel.Location = New-Object Drawing.Point(20, 220)
 $repoPathLabel.Size = New-Object Drawing.Size(150, 30)
 $form.Controls.Add($repoPathLabel)
 
 # Repo path textbox
 $repoPathBox = New-Object Windows.Forms.TextBox
-$repoPathBox.Location = New-Object Drawing.Point(180, 180)
+$repoPathBox.Location = New-Object Drawing.Point(180, 220)
 $repoPathBox.Size = New-Object Drawing.Size(180, 30)
 $form.Controls.Add($repoPathBox)
 
 # Browse button
 $browseButton = New-Object Windows.Forms.Button
 $browseButton.Text = "Browse"
-$browseButton.Location = New-Object Drawing.Point(370, 180)
+$browseButton.Location = New-Object Drawing.Point(370, 220)
 $browseButton.Size = New-Object Drawing.Size(60, 30)
 $form.Controls.Add($browseButton)
 
@@ -64,33 +76,41 @@ $browseButton.Add_Click({
 # Submit Button
 $submitButton = New-Object Windows.Forms.Button
 $submitButton.Text = "Generate & Push"
-$submitButton.Location = New-Object Drawing.Point(150, 220)
+$submitButton.Location = New-Object Drawing.Point(150, 260)
 $submitButton.Size = New-Object Drawing.Size(180, 30)
 
 $submitButton.Add_Click({
     $baseName = $rgTextBox.Text
     $repoPath = $repoPathBox.Text
+    $rgCount = [int]$countTextBox.Text
     $locations = @()
 
     foreach ($item in $locationListBox.CheckedItems) {
         $locations += $item
     }
 
-    if (-not $baseName -or -not $repoPath -or $locations.Count -eq 0) {
-        [System.Windows.Forms.MessageBox]::Show("Please fill in all fields and select at least one location.")
+    if (-not $baseName -or -not $repoPath -or $locations.Count -eq 0 -or $rgCount -le 0) {
+        [System.Windows.Forms.MessageBox]::Show("Please fill in all fields, select locations, and enter a valid count.")
         return
     }
 
-    # .bicepparam file created in same folder as main.bicep
     $paramPath = Join-Path $repoPath "main.bicepparam"
+    $quotedLocations = $locations | ForEach-Object { "'$_'" } | ForEach-Object { "    $_" }
 
-    # Construct .bicepparam content
+    $rgNames = @()
+    for ($i = 1; $i -le $rgCount; $i++) {
+        $rgNames += "'$baseName-$i'"
+    }
+
     $paramContent = @"
 using 'main.bicep'
 
 param baseName = '$baseName'
 param locations = [
-$(($locations | ForEach-Object { "'$_'" }) -join "`n")
+$($quotedLocations -join ",`n")
+]
+param rgNames = [
+$($rgNames -join ",`n")
 ]
 "@
 
@@ -99,7 +119,7 @@ $(($locations | ForEach-Object { "'$_'" }) -join "`n")
 
         Set-Location $repoPath
         git add .
-        git commit -m "Auto-create RGs: $baseName in [$($locations -join ', ')]"
+        git commit -m "Auto-create RGs: $baseName count=$rgCount in [$($locations -join ', ')]"
         git push origin main
 
         $result = [System.Windows.Forms.MessageBox]::Show("RG param file committed and pushed to GitHub!", "Success", "OK", "Information")

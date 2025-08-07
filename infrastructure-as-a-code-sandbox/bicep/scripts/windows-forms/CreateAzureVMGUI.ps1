@@ -1,4 +1,4 @@
-<#
+ <#
 .SYNOPSIS
   Used to created VM servers in Azure.
 .DESCRIPTION
@@ -256,7 +256,10 @@ foreach ($os in $osList) {
  
  foreach ($location in $locationList) {
      $locationComboBoxRight.Items.Add($location) > $null
- } 
+ }
+
+# Required for InputBox
+Add-Type -AssemblyName Microsoft.VisualBasic
  
 # Connect to Azure Button
 $connectButton = New-Object Windows.Forms.Button
@@ -264,44 +267,53 @@ $connectButton.Text = "Connect to Azure"
 $connectButton.Location = New-Object Drawing.Point(50, 10)
 $connectButton.Size = New-Object Drawing.Size(550, 30)
 $connectButton.Add_Click({
-    # Login to Azure using Azure CLI
-    $loginResult = az login 2>$null
-    if ($loginResult) {
+    # Try silent account check
+    $account = az account show 2>$null
+
+    if (-not $account) {
+        # First try default login
+        az login 2>$null
+        $account = az account show 2>$null
+
+        if (-not $account) {
+            # Prompt for tenant
+            $tenantId = [Microsoft.VisualBasic.Interaction]::InputBox("Enter your Azure Tenant ID:", "Tenant Required", "")
+
+            if (![string]::IsNullOrWhiteSpace($tenantId)) {
+                az login --tenant $tenantId 2>$null
+                $account = az account show 2>$null
+            }
+        }
+    }
+
+    if ($account) {
         [System.Windows.Forms.MessageBox]::Show("Connected to Azure.")
-        
-        # Fetch Resource Groups
+
         $rgList = az group list --query "[].name" -o tsv
-        
-       # Populate the first dropdown with resource groups
-       $rgComboBox.Items.Clear()
-       $rgList | ForEach-Object {
-           $rgComboBox.Items.Add($_)
-       }
 
-       # Add a delay before populating the second dropdown
-       Start-Sleep -Milliseconds 500
+        $rgComboBox.Items.Clear()
+        $rgList | ForEach-Object { $rgComboBox.Items.Add($_) }
 
-       # Populate the second dropdown with resource groups
-       $vnetRGComboBox.Items.Clear()
-       $rgList | ForEach-Object {
-           $vnetRGComboBox.Items.Add($_)
-       }
+        Start-Sleep -Milliseconds 500
 
-       if ($rgComboBox.Items.Count -eq 0) {
-           [System.Windows.Forms.MessageBox]::Show("No resource groups found!")
-       } else {
-           $rgComboBox.SelectedIndex = 0
-       }
+        $vnetRGComboBox.Items.Clear()
+        $rgList | ForEach-Object { $vnetRGComboBox.Items.Add($_) }
 
-       if ($vnetRGComboBox.Items.Count -eq 0) {
-           [System.Windows.Forms.MessageBox]::Show("No resource groups found for VNets!")
-       } else {
-           $vnetRGComboBox.SelectedIndex = 0
-       }
-   } else {
-       [System.Windows.Forms.MessageBox]::Show("Failed to connect to Azure.")
-   }
- })
+        if ($rgComboBox.Items.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("No resource groups found!")
+        } else {
+            $rgComboBox.SelectedIndex = 0
+        }
+
+        if ($vnetRGComboBox.Items.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("No resource groups found for VNets!")
+        } else {
+            $vnetRGComboBox.SelectedIndex = 0
+        }
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("Azure login failed. No tenant found.")
+    }
+})
  $form.Controls.Add($connectButton)
 
 # Fetch VNets and Storage Accounts when a Resource Group is selected
@@ -534,7 +546,7 @@ foreach ($appSize in $appSizes) {
 # Load Active Directory OUs into TreeView
 function Load-OUs {
    param (
-       [string]$baseDN = 'DC=example,DC=com'
+       [string]$baseDN = 'DC=example,DC=local'
    )
    try {
        $searcher = New-Object DirectoryServices.DirectorySearcher
@@ -654,4 +666,4 @@ $form.Controls.Add($submitButton)
 Load-OUs | Out-Null
 
 # Initialize the form
-$form.ShowDialog() | Out-Null
+$form.ShowDialog() | Out-Null 

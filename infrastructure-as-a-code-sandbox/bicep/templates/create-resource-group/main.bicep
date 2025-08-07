@@ -4,10 +4,10 @@ param resourceGroupNames array
 
 targetScope = 'subscription'
 
-module rgModule 'modules/resource.bicep' = [for (loc, i) in locations: {
-  name: 'rgDeploy-${loc}'
+module rgModule 'modules/resource.bicep' = [for (name, i) in resourceGroupNames: {
+  name: 'rgDeploy-${name}'
   params: {
-    resourceGroupName: resourceGroupNames[i]
-    location: loc
+    resourceGroupName: name
+    location: locations[i]
   }
 }]

@@ -65,7 +65,6 @@ $browseButton.Location = New-Object Drawing.Point(370, 220)
 $browseButton.Size = New-Object Drawing.Size(60, 30)
 $form.Controls.Add($browseButton)
 
-# Folder browser dialog
 $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
 $browseButton.Add_Click({
     if ($folderBrowser.ShowDialog() -eq "OK") {
@@ -95,22 +94,25 @@ $submitButton.Add_Click({
     }
 
     $paramPath = Join-Path $repoPath "main.bicepparam"
-    $quotedLocations = $locations | ForEach-Object { "'$_'" } | ForEach-Object { "    $_" }
 
-    $rgNames = @()
+    # Format locations and RG names without commas
+    $quotedLocations = $locations | ForEach-Object { "  '$_'" }
+    $resourceGroupNames = @()
     for ($i = 1; $i -le $rgCount; $i++) {
-        $rgNames += "'$baseName-$i'"
+        $resourceGroupNames += "  '$baseName-$i'"
     }
 
     $paramContent = @"
 using 'main.bicep'
 
 param baseName = '$baseName'
+
 param locations = [
-$($quotedLocations -join ",`n")
+$($quotedLocations -join "`n")
 ]
-param rgNames = [
-$($rgNames -join ",`n")
+
+param resourceGroupNames = [
+$($resourceGroupNames -join "`n")
 ]
 "@
 
@@ -120,7 +122,7 @@ $($rgNames -join ",`n")
         Set-Location $repoPath
         git add .
         git commit -m "Auto-create RGs: $baseName count=$rgCount in [$($locations -join ', ')]"
-        git push origin main
+        git push origin dev
 
         $result = [System.Windows.Forms.MessageBox]::Show("RG param file committed and pushed to GitHub!", "Success", "OK", "Information")
         if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
@@ -133,5 +135,5 @@ $($rgNames -join ",`n")
 })
 $form.Controls.Add($submitButton)
 
-# Run the form
+# Show the form
 $form.ShowDialog() | Out-Null

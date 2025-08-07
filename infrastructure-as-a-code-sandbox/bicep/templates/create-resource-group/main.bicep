@@ -16,10 +16,6 @@ var count = useExplicitNames
   ? length(resourceGroupNames)
   : length(locations)
 
-// Safety: if not using one location for all, lengths must align when names are provided
-//@allowed([true])
-var _assertLengthsOk = singleLoc || !useExplicitNames || (length(resourceGroupNames) == length(locations))
-
 // Deploy the RGs
 module rgModule 'modules/resource.bicep' = [for i in range(0, count): {
   name: 'rgDeploy-${i}'

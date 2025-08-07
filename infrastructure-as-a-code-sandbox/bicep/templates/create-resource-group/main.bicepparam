@@ -1,6 +1,10 @@
 using 'main.bicep'
 
-param baseName = 'sandbox-rg-dev'
+param baseName = 'vivo-dev'
 param locations = [
-'eastus'
+    'eastus'
+]
+param rgNames = [
+'vivo-dev-1',
+'vivo-dev-2'
 ]

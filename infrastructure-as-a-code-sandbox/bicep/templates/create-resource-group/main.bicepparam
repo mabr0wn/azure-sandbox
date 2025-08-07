@@ -1,12 +1,12 @@
 using 'main.bicep'
 
-param baseName = 'test-vid'
+param baseName = 'skynet-dev'
 
 param locations = [
   'eastus'
 ]
 
 param resourceGroupNames = [
-  'test-vid-1'
-  'test-vid-2'
+  'skynet-dev-1'
+  'skynet-dev-2'
 ]

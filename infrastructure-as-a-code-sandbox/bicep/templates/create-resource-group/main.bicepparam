@@ -1,12 +1,12 @@
 using 'main.bicep'
 
-param baseName = 'test-dev'
+param baseName = 'test-vid'
 
 param locations = [
   'eastus'
 ]
 
 param resourceGroupNames = [
-  'test-dev-1'
-  'test-dev-2'
+  'test-vid-1'
+  'test-vid-2'
 ]

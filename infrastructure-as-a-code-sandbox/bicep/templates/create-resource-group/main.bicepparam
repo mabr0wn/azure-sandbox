@@ -1,10 +1,10 @@
 using 'main.bicep'
 
-param baseName = 'vivo-dev'
+param baseName = 'viv0-dev'
 param locations = [
     'eastus'
 ]
 param rgNames = [
-'vivo-dev-1',
-'vivo-dev-2'
+'viv0-dev-1',
+'viv0-dev-2'
 ]

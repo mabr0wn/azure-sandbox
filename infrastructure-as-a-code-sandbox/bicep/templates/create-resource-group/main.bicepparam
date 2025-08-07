@@ -1,10 +1,10 @@
 using 'main.bicep'
 
-param baseName = 'vivo-dev-'
+param baseName = 'viva-test-'
 param locations = [
     'eastus'
 ]
 param resourceGroupNames = [
-'vivo-dev--1',
-'vivo-dev--2'
+'viva-test--1',
+'viva-test--2'
 ]

@@ -17,7 +17,7 @@ var count = useExplicitNames
   : length(locations)
 
 // Deploy the RGs
-module rgModule 'modules/resource.bicep' = [for i in range(0, count): {
+module rgModule '.modules/resource.bicep' = [for i in range(0, count): {
   name: 'rgDeploy-${i}'
   params: {
     resourceGroupName: useExplicitNames

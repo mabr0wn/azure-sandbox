@@ -668,7 +668,11 @@ $submitButton.Add_Click({
             # Ensure directory exists
             $null = New-Item -ItemType Directory -Path (Split-Path $paramPath) -Force
 
-            # Build .bicepparam content (closing "@ must be at column 1)
+            # Build .bicepparam content (closing "@ must be at column 1)\
+
+# Make sure you're logged in to the right tenant/sub first
+$subId = (az account show --query id -o tsv).Trim()
+
 $paramContent = @"
 using 'main.bicep'
 
@@ -679,6 +683,10 @@ param domainJoinUserName   = 'AzureServiceAccount'
 param domainJoinSecretName = 'domainJoinSAPassSecret'
 param vmUserName           = 'SkynetAdmin'
 param vmSecretName         = 'vmPasswordSecret'
+
+// --- Secure values from Key Vault ---
+param vmPassword             = az.getSecret('$subId', '$(Escape-SingleQuotes $resourceGroup)', kvname, vmSecretName)
+param domainJoinUserPassword = az.getSecret('$subId', '$(Escape-SingleQuotes $resourceGroup)', kvname, domainJoinSecretName)
 
 // --- UI-driven values ---
 param vmName              = '$(Escape-SingleQuotes $vmName)'
@@ -700,6 +708,8 @@ param ouPath              = '$(Escape-SingleQuotes $selectedOU)'
 param resourceGroupName   = '$(Escape-SingleQuotes $resourceGroup)'
 param sshPublicKey        = ''
 "@
+
+
 
             # Write file
             Set-Content -Path $paramPath -Value $paramContent -Force -Encoding UTF8

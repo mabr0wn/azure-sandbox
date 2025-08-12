@@ -60,18 +60,26 @@ param sshPublicKey string
 param storageAccountType string
 // param scriptContent string
 
+@secure()
+param vmPassword string
+
+@secure()
+param domainJoinUserPassword string
+
 ////////////////////////////////////////////////////////////////////////////////
 // Deployment vm start
 ////////////////////////////////////////////////////////////////////////////////
 module azVirtualMachine './.modules/vm.bicep' = {
   name: 'azVirtualMachine'
   params: {
-    // KV context + secret names (no secret values)
+    // You can STOP passing the secret names to the module now
     kvname: kvname
-    // kvResourceGroup: kvResourceGroup
-    // kvSubscriptionId: kvSubscriptionId
     vmSecretName: vmSecretName
     domainJoinSecretName: domainJoinSecretName
+
+    // Pass the resolved secret VALUES instead:
+    vmPassword: vmPassword
+    domainJoinUserPassword: domainJoinUserPassword
 
     // VM + networking
     vmName: vmName

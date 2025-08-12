@@ -25,19 +25,25 @@ param storageAccountName string
 param resourceGroupName string
 param sshPublicKey string
 
+@secure()
+param vmPassword string
+
+@secure()
+param domainJoinUserPassword string
+
 @sys.description('Tags to apply to the resource.')
 param tags object = resourceGroup().tags
 
 // ---------- Secret lookups (Key Vault) ----------
-var vmPassword = listSecret(
-  resourceId('Microsoft.KeyVault/vaults/secrets', kvname, vmSecretName),
-  '2015-06-01'
-).value
+// var vmPassword = listSecret(
+//   resourceId('Microsoft.KeyVault/vaults/secrets', kvname, vmSecretName),
+//   '2015-06-01'
+// ).value
 
-var domainJoinUserPassword = listSecret(
-  resourceId('Microsoft.KeyVault/vaults/secrets', kvname, domainJoinSecretName),
-  '2015-06-01'
-).value
+// var domainJoinUserPassword = listSecret(
+//   resourceId('Microsoft.KeyVault/vaults/secrets', kvname, domainJoinSecretName),
+//   '2015-06-01'
+// ).value
 
 // ---------- Other locals ----------
 var subnetRef = resourceId(vNetResourceGroup, 'Microsoft.Network/virtualNetworks/subnets', vNetName, SubnetName)
@@ -101,6 +107,25 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(
   tags: tags
 }]
 
+resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
+  name: kvname
+}
+
+resource vmPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
+  parent:keyVault
+  name: '${keyVault.name}-${vmSecretName}'
+  properties: {
+    value: vmPassword
+  }
+}
+
+resource domainJoinUserPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
+  parent: keyVault
+  name: '${keyVault.name}-${domainJoinSecretName}'
+  properties: {
+    value: domainJoinUserPassword
+  }
+}
 // ---------- VM ----------
 resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i in range(0, virtualMachineCount): {
   name: '${vmName}${virtualMachineCount > 1 ? (i + 1) : ''}'

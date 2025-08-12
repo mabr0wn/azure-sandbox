@@ -31,15 +31,16 @@ param sshPublicKey string
 param tags object = resourceGroup().tags
 
 // ---------- Secret lookups (Key Vault) ----------
-var vmPassword = reference(
-  '${resourceId(kvSubscriptionId, kvResourceGroup, 'Microsoft.KeyVault/vaults', kvname)}/secrets/${vmSecretName}',
+var vmPassword = listSecret(
+  resourceId(kvSubscriptionId, kvResourceGroup, 'Microsoft.KeyVault/vaults/secrets', kvname, vmSecretName),
   '2015-06-01'
 ).value
 
-var domainJoinUserPassword = reference(
-  '${resourceId(kvSubscriptionId, kvResourceGroup, 'Microsoft.KeyVault/vaults', kvname)}/secrets/${domainJoinSecretName}',
+var domainJoinUserPassword = listSecret(
+  resourceId(kvSubscriptionId, kvResourceGroup, 'Microsoft.KeyVault/vaults/secrets', kvname, domainJoinSecretName),
   '2015-06-01'
 ).value
+
 
 // ---------- Other locals ----------
 var subnetRef = resourceId(vNetResourceGroup, 'Microsoft.Network/virtualNetworks/subnets', vNetName, SubnetName)

@@ -9,8 +9,8 @@ param vmUserName           = 'SkynetAdmin'
 param vmSecretName         = 'vmPasswordSecret'
 
 // --- Secure values from Key Vault ---
-param vmPassword             = az.getSecret('d3c58f05-ba94-4319-ba03-af2cde1d8529', '', kvname, vmSecretName)
-param domainJoinUserPassword = az.getSecret('d3c58f05-ba94-4319-ba03-af2cde1d8529', '', kvname, domainJoinSecretName)
+param vmPassword             = az.getSecret('d3c58f05-ba94-4319-ba03-af2cde1d8529', 'sandbox-rg', kvname, vmSecretName)
+param domainJoinUserPassword = az.getSecret('d3c58f05-ba94-4319-ba03-af2cde1d8529', 'sandbox-rg', kvname, domainJoinSecretName)
 
 // --- UI-driven values ---
 param vmName              = 'azskynetwin5'

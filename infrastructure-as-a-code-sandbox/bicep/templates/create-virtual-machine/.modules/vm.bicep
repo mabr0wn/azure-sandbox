@@ -163,25 +163,17 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
           ]
         }
       } : null)
-      windowsConfiguration: (operatingSystemValues[OS].PublisherValue == 'MicrosoftWindowsServer' ? {
-        provisionVMAgent: true
-        additionalUnattendContent: [
-          {
-            passName: 'OobeSystem'
-            componentName: 'Microsoft-Windows-Shell-Setup'
-            settingName: 'FirstLogonCommands'
-            content: '''
-              <FirstLogonCommands>
-                <SynchronousCommand wcm:action="add">
-                  <Order>1</Order>
-                  <CommandLine>powershell -ExecutionPolicy Bypass -Command "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False"</CommandLine>
-                  <Description>Disable Windows Firewall</Description>
-                </SynchronousCommand>
-              </FirstLogonCommands>
-            '''
-            }
-          ]
-      } : null)
+windowsConfiguration: (operatingSystemValues[OS].PublisherValue == 'MicrosoftWindowsServer' ? {
+  provisionVMAgent: true
+  additionalUnattendContent: [
+    {
+      passName: 'OobeSystem'
+      componentName: 'Microsoft-Windows-Shell-Setup'
+      settingName: 'FirstLogonCommands'
+      content: '<FirstLogonCommands><SynchronousCommand wcm:action="add"><Order>1</Order><CommandLine>powershell -ExecutionPolicy Bypass -Command "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False"</CommandLine><Description>Disable Windows Firewall</Description></SynchronousCommand></FirstLogonCommands>'
+    }
+  ]
+} : null)
     }
     networkProfile: {
       networkInterfaces: [

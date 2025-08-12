@@ -16,11 +16,8 @@ param domainJoinUserName string
 param ouPath string
 param storageAccountType string
 param domainJoinSecretName string
-// param scriptContent string
 @description('Existing keyvault name in Azure.')
 param kvname string
-// (KV is in same sub/RG as deployment, so no kvSubscriptionId/kvResourceGroup params)
-
 param storageAccountName string
 param resourceGroupName string
 param sshPublicKey string
@@ -33,17 +30,6 @@ param domainJoinUserPassword string
 
 @sys.description('Tags to apply to the resource.')
 param tags object = resourceGroup().tags
-
-// ---------- Secret lookups (Key Vault) ----------
-// var vmPassword = listSecret(
-//   resourceId('Microsoft.KeyVault/vaults/secrets', kvname, vmSecretName),
-//   '2015-06-01'
-// ).value
-
-// var domainJoinUserPassword = listSecret(
-//   resourceId('Microsoft.KeyVault/vaults/secrets', kvname, domainJoinSecretName),
-//   '2015-06-01'
-// ).value
 
 // ---------- Other locals ----------
 var subnetRef = resourceId(vNetResourceGroup, 'Microsoft.Network/virtualNetworks/subnets', vNetName, SubnetName)
@@ -165,14 +151,6 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
       } : null)
 windowsConfiguration: (operatingSystemValues[OS].PublisherValue == 'MicrosoftWindowsServer' ? {
   provisionVMAgent: true
-  // additionalUnattendContent: [
-  //   {
-  //     passName: 'oobeSystem'
-  //     componentName: 'Microsoft-Windows-Shell-Setup'
-  //     settingName: 'FirstLogonCommands'
-  //     content: '<FirstLogonCommands><SynchronousCommand wcm:action="add"><Order>1</Order><CommandLine>powershell -ExecutionPolicy Bypass -Command "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False"</CommandLine><Description>Disable Windows Firewall</Description></SynchronousCommand></FirstLogonCommands>'
-  //   }
-  // ]
 } : null)
     }
     networkProfile: {
@@ -266,18 +244,4 @@ resource disableFirewallExt 'Microsoft.Compute/virtualMachines/extensions@2023-0
   }
 }
 
-
-// resource windowsFirewallDisable 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
-//   name: '${vmName}/disable-firewall'
-//   location: location
-//   properties: {
-//     publisher: 'Microsoft.Compute'
-//     type: 'CustomScriptExtension'
-//     typeHandlerVersion: '1.10'
-//     autoUpgradeMinorVersion: true
-//     settings: {
-//       commandToExecute: 'powershell -ExecutionPolicy Bypass -Command "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False"'
-//     }
-//   }
-// }
 

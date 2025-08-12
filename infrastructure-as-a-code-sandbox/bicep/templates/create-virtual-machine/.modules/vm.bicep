@@ -165,14 +165,14 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
       } : null)
       windowsConfiguration: (operatingSystemValues[OS].PublisherValue == 'MicrosoftWindowsServer' ? {
         provisionVMAgent: true
-        additionalUnattendContent: [
-          {
-            passName: 'OobeSystem'
-            componentName: 'Microsoft-Windows-Shell-Setup'
-            settingName: 'FirstLogonCommands'
-            content: 'powershell.exe -ExecutionPolicy Bypass -File "./scripts/disable-domain-firewall.ps1"'
-          }
-        ]
+        // additionalUnattendContent: [
+        //   {
+        //     passName: 'OobeSystem'
+        //     componentName: 'Microsoft-Windows-Shell-Setup'
+        //     settingName: 'FirstLogonCommands'
+        //     content: 'powershell.exe -ExecutionPolicy Bypass -File "./scripts/disable-domain-firewall.ps1"'
+        //   }
+        // ]
       } : null)
     }
     networkProfile: {

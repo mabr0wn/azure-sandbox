@@ -675,7 +675,6 @@ using 'main.bicep'
 // --- Fixed values (safe to commit) ---
 param domainFQDN           = 'SkyN3t.local'
 param kvname               = 'kv-skynet'
-param kvResourceGroup      = 'sandbox-rg'
 param domainJoinUserName   = 'AzureServiceAccount'
 param domainJoinSecretName = 'domainJoinSAPassSecret'
 param vmUserName           = 'SkynetAdmin'

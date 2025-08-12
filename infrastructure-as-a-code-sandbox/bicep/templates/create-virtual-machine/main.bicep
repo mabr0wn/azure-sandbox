@@ -48,11 +48,11 @@ param vNetResourceGroup string
 @description('Existing Key Vault name.')
 param kvname string
 
-@description('Resource group containing the Key Vault (defaults to current RG).')
-param kvResourceGroup string = resourceGroup().name
+// @description('Resource group containing the Key Vault (defaults to current RG).')
+// param kvResourceGroup string = resourceGroup().name
 
-@description('Subscription ID containing the Key Vault (defaults to current sub).')
-param kvSubscriptionId string = subscription().subscriptionId
+// @description('Subscription ID containing the Key Vault (defaults to current sub).')
+// param kvSubscriptionId string = subscription().subscriptionId
 
 param storageAccountName string
 param resourceGroupName string
@@ -68,8 +68,8 @@ module azVirtualMachine './.modules/vm.bicep' = {
   params: {
     // KV context + secret names (no secret values)
     kvname: kvname
-    kvResourceGroup: kvResourceGroup
-    kvSubscriptionId: kvSubscriptionId
+    // kvResourceGroup: kvResourceGroup
+    // kvSubscriptionId: kvSubscriptionId
     vmSecretName: vmSecretName
     domainJoinSecretName: domainJoinSecretName
 

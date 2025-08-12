@@ -20,8 +20,8 @@ param domainJoinSecretName string
 @description('Existing keyvault name in Azure.')
 param kvname string
 // NEW (defaults): where the KV lives; override if different
-param kvResourceGroup string = resourceGroup().name
-param kvSubscriptionId string = subscription().subscriptionId
+// param kvResourceGroup string = resourceGroup().name
+// param kvSubscriptionId string = subscription().subscriptionId
 
 param storageAccountName string
 param resourceGroupName string
@@ -32,14 +32,15 @@ param tags object = resourceGroup().tags
 
 // ---------- Secret lookups (Key Vault) ----------
 var vmPassword = listSecret(
-  resourceId(kvSubscriptionId, kvResourceGroup, 'Microsoft.KeyVault/vaults/secrets', kvname, vmSecretName),
+  resourceId('Microsoft.KeyVault/vaults/secrets', kvname, vmSecretName),
   '2015-06-01'
 ).value
 
 var domainJoinUserPassword = listSecret(
-  resourceId(kvSubscriptionId, kvResourceGroup, 'Microsoft.KeyVault/vaults/secrets', kvname, domainJoinSecretName),
+  resourceId('Microsoft.KeyVault/vaults/secrets', kvname, domainJoinSecretName),
   '2015-06-01'
 ).value
+
 
 
 // ---------- Other locals ----------

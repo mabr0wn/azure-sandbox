@@ -732,6 +732,10 @@ param sshPublicKey        = ''
                     git commit -m $commitMsg
                     git push origin $branch
                     [System.Windows.Forms.MessageBox]::Show("Committed and pushed $paramRelPath to '$branch'.", "Info") | Out-Null
+
+                    # Close the form after successful commit/push
+                    $form.Close()
+                    
                 }
             }
             finally {

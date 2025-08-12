@@ -36,9 +36,9 @@ jobs:
         with:
           subscriptionId:     ${{ secrets.AZURE_SUBSCRIPTION }}
           resourceGroupName:  ${{ secrets.AZURE_RG }}
-          template:           ./infrastructure-as-a-code-sandbox/bicep/template/create-virtual-machine/main.bicep
+          template:           ./infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/main.bicep
           # Point directly to the .bicepparam file:
-          parameters:         ./infrastructure-as-a-code-sandbox/bicep/template/create-virtual-machine/main.bicepparam
+          parameters:         ./infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/main.bicepparam
           deploymentName:     vm-deploy-${{ github.run_number }}
           failOnStdErr:       false
           # Remove scope when using resourceGroupName

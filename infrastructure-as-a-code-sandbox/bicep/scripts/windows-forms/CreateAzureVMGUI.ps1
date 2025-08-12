@@ -607,7 +607,6 @@ $btnRepoBrowse.Enabled        = $false
 $txtBranch.Enabled            = $false
 $txtCommit.Enabled            = $false
 
-
 # -----------------------------
 # Submit (Deploy or Commit)
 # -----------------------------
@@ -616,29 +615,29 @@ $submitButton.Text = "Create VM  /  Generate & Push"
 $submitButton.Location = New-Object Drawing.Point(30, 730)
 $submitButton.Size = New-Object Drawing.Size(640, 30)
 $submitButton.Add_Click({
-    $vmName          = $vmNameTextBox.Text
-    $resourceGroup   = $rgComboBox.SelectedItem
-    $vnetName        = $vnetComboBox.SelectedItem
+    $vmName            = $vmNameTextBox.Text
+    $resourceGroup     = $rgComboBox.SelectedItem
+    $vnetName          = $vnetComboBox.SelectedItem
     $vNetResourceGroup = $vnetRGComboBox.SelectedItem
-    $storageAccount  = $storageComboBox.SelectedItem
-    $snet            = $snetComboBox.SelectedItem
-    $nsg             = $snetNSGComboBox.SelectedItem
-    $vmSize          = $vmSizeComboBoxRight.SelectedItem
-    $storageType     = $storageTypeComboBoxRight.SelectedItem
-    $os              = $osComboBoxRight.SelectedItem
-    $ip              = $ipTextBoxRight.Text
-    $env             = $comboBoxEnv.SelectedItem
-    $owner           = $comboBoxOwner.SelectedItem
-    $dept            = $comboBoxDept.SelectedItem
-    $app             = $comboBoxApp.SelectedItem
-    $selectedOU      = $selectedOUTextBox.Text
-    $bicepParamFile  = $bicepFilePathTextBox.Text
-    $location        = $locationComboBoxRight.SelectedItem
+    $storageAccount    = $storageComboBox.SelectedItem
+    $snet              = $snetComboBox.SelectedItem
+    $nsg               = $snetNSGComboBox.SelectedItem
+    $vmSize            = $vmSizeComboBoxRight.SelectedItem
+    $storageType       = $storageTypeComboBoxRight.SelectedItem
+    $os                = $osComboBoxRight.SelectedItem
+    $ip                = $ipTextBoxRight.Text
+    $env               = $comboBoxEnv.SelectedItem
+    $owner             = $comboBoxOwner.SelectedItem
+    $dept              = $comboBoxDept.SelectedItem
+    $app               = $comboBoxApp.SelectedItem
+    $selectedOU        = $selectedOUTextBox.Text
+    $bicepParamFile    = $bicepFilePathTextBox.Text
+    $location          = $locationComboBoxRight.SelectedItem
 
-    $commitOnly      = $chkCommitOnly.Checked
-    $repoPath        = $txtRepo.Text
-    $branch          = $txtBranch.Text
-    $commitMsg       = $txtCommit.Text
+    $commitOnly        = $chkCommitOnly.Checked
+    $repoPath          = $txtRepo.Text
+    $branch            = $txtBranch.Text
+    $commitMsg         = $txtCommit.Text
 
     if ([string]::IsNullOrWhiteSpace($vmName) -or
         [string]::IsNullOrWhiteSpace($resourceGroup) -or
@@ -662,16 +661,21 @@ $submitButton.Add_Click({
                 return
             }
 
-        $paramPath = Join-Path $repoPath "infrastructure-as-a-code-sandbox" |
-             Join-Path -ChildPath "bicep\templates\create-virtual-machine\main.bicepparam"
-            
+            # Relative path inside repo and absolute path to write
+            $paramRelPath = Join-Path "infrastructure-as-a-code-sandbox" "bicep\templates\create-virtual-machine\main.bicepparam"
+            $paramPath    = Join-Path $repoPath $paramRelPath
+
+            # Ensure directory exists
+            $null = New-Item -ItemType Directory -Path (Split-Path $paramPath) -Force
+
+            # Build .bicepparam content (closing "@ must be at column 1)
 $paramContent = @"
 using 'main.bicep'
 
 // --- Fixed values (safe to commit) ---
 param domainFQDN           = 'SkyN3t.local'
 param kvname               = 'kv-skynet'
-param kvResourceGroup      = 'sandbox-rg'          // change if your KV lives elsewhere
+param kvResourceGroup      = 'sandbox-rg'
 param domainJoinUserName   = 'AzureServiceAccount'
 param domainJoinSecretName = 'domainJoinSAPassSecret'
 param vmUserName           = 'SkynetAdmin'
@@ -694,33 +698,40 @@ param env                 = '$(Escape-SingleQuotes $env)'
 param app                 = '$(Escape-SingleQuotes $app)'
 param owner               = '$(Escape-SingleQuotes $owner)'
 param ouPath              = '$(Escape-SingleQuotes $selectedOU)'
-param resourceGroupName   = '$(Escape-SingleQuotes $resourceGroupName)'
-param sshPublicKey        = '$(Escape-SingleQuotes $sshPublicKey)'
+param resourceGroupName   = '$(Escape-SingleQuotes $resourceGroup)'
+param sshPublicKey        = ''
 "@
 
-
+            # Write file
             Set-Content -Path $paramPath -Value $paramContent -Force -Encoding UTF8
 
             Push-Location $repoPath
             try {
+                # checkout branch (create if missing)
                 git rev-parse --verify $branch 2>$null | Out-Null
-                if ($LASTEXITCODE -ne 0) {
-                    git checkout -b $branch
+                if ($LASTEXITCODE -ne 0) { git checkout -b $branch } else { git checkout $branch }
+
+                # Stage the correct file (relative to repo root)
+                git add -- $paramRelPath
+
+                # Commit only if there is an actual change
+                $changed = git status --porcelain -- $paramRelPath
+                if ([string]::IsNullOrWhiteSpace($changed)) {
+                    [System.Windows.Forms.MessageBox]::Show("No changes in $paramRelPath - nothing to commit.", "Info") | Out-Null
                 } else {
-                    git checkout $branch
+                    if ([string]::IsNullOrWhiteSpace($commitMsg)) { $commitMsg = "Auto: VM params" }
+                    git commit -m $commitMsg
+                    git push origin $branch
+                    [System.Windows.Forms.MessageBox]::Show("Committed and pushed $paramRelPath to '$branch'.", "Info") | Out-Null
                 }
-
-                git add main.bicepparam
-                if ([string]::IsNullOrWhiteSpace($commitMsg)) { $commitMsg = "Auto: VM params" }
-                git commit -m $commitMsg
-                git push origin $branch
-
-                Show-Info "VM param file committed and pushed to '$branch'!"
-                $form.Close()
-            } finally {
+            }
+            finally {
                 Pop-Location
             }
-        } else {
+
+            return
+        }
+        else {
             if ([string]::IsNullOrWhiteSpace($bicepParamFile) -or -not (Test-Path $bicepParamFile)) {
                 Show-Warn "Select a valid .bicepparam file (or use the Git option)."
                 return
@@ -752,11 +763,13 @@ az deployment group create `
             Invoke-Expression $bicepCommand
             Show-Info 'VM Creation Successful!'
         }
-    } catch {
-        Show-Error "Error: $_"
+    }
+    catch {
+        Show-Error ("Error: " + $_)
     }
 })
 $form.Controls.Add($submitButton)
+
 
 # -----------------------------
 # Load OUs at start

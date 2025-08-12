@@ -253,6 +253,7 @@ resource disableFirewallExt 'Microsoft.Compute/virtualMachines/extensions@2023-0
   location: location
   dependsOn: [
     virtualmachine
+    windowsDomainJoin
   ]
   properties: {
     publisher: 'Microsoft.Compute'

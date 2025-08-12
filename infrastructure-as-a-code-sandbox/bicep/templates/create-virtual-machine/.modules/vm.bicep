@@ -1,6 +1,5 @@
+// ---------- Params (inputs) ----------
 param vmUserName string
-@secure()
-param vmPassword string
 param vmSecretName string
 param vmName string
 param virtualMachineCount int
@@ -16,16 +15,38 @@ param domainFQDN string
 param domainJoinUserName string
 param ouPath string
 param storageAccountType string
-@secure()
-param domainJoinUserPassword string
 param domainJoinSecretName string
-//param scriptContent string
+// param scriptContent string
 @description('Existing keyvault name in Azure.')
 param kvname string
+// NEW (defaults): where the KV lives; override if different
+param kvResourceGroup string = resourceGroup().name
+param kvSubscriptionId string = subscription().subscriptionId
+
 param storageAccountName string
 param resourceGroupName string
 param sshPublicKey string
 
+@sys.description('Tags to apply to the resource.')
+param tags object = resourceGroup().tags
+
+// ---------- Secret lookups (Key Vault) ----------
+var vmPassword = reference(
+  '${resourceId(kvSubscriptionId, kvResourceGroup, 'Microsoft.KeyVault/vaults', kvname)}/secrets/${vmSecretName}',
+  '2015-06-01'
+).value
+
+var domainJoinUserPassword = reference(
+  '${resourceId(kvSubscriptionId, kvResourceGroup, 'Microsoft.KeyVault/vaults', kvname)}/secrets/${domainJoinSecretName}',
+  '2015-06-01'
+).value
+
+// ---------- Other locals ----------
+var subnetRef = resourceId(vNetResourceGroup, 'Microsoft.Network/virtualNetworks/subnets', vNetName, SubnetName)
+var uniqueStringSuffix = uniqueString(resourceGroup().id)
+var nsgRef = resourceId(vNetResourceGroup,'Microsoft.Network/networkSecurityGroups', NSG)
+
+// (keep your operatingSystemValues map as-is)
 var operatingSystemValues = {
   Server2016: {
     PublisherValue: 'MicrosoftWindowsServer'
@@ -129,14 +150,6 @@ var operatingSystemValues = {
   }
   
 }
-
-
-@sys.description('Tags to apply to the resource.')
-param tags object = resourceGroup().tags
-
-var subnetRef = resourceId(vNetResourceGroup, 'Microsoft.Network/virtualNetworks/subnets', vNetName, SubnetName)
-var uniqueStringSuffix = uniqueString(resourceGroup().id)
-var nsgRef = resourceId(vNetResourceGroup,'Microsoft.Network/networkSecurityGroups', NSG)
 
 resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i in range(0, virtualMachineCount): {
   name: '${vmName}${virtualMachineCount > 1 ? (i + 1) : ''}' 

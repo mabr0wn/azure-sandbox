@@ -662,10 +662,22 @@ $submitButton.Add_Click({
                 return
             }
 
-            $paramPath = Join-Path $repoPath "main.bicepparam"
+        $paramPath = Join-Path $repoPath "infrastructure-as-a-code-sandbox" |
+             Join-Path -ChildPath "bicep\templates\create-virtual-machine\main.bicepparam"
+            
 $paramContent = @"
 using 'main.bicep'
 
+// --- Fixed values (safe to commit) ---
+param domainFQDN           = 'SkyN3t.local'
+param kvname               = 'kv-skynet'
+param kvResourceGroup      = 'sandbox-rg'          // change if your KV lives elsewhere
+param domainJoinUserName   = 'AzureServiceAccount'
+param domainJoinSecretName = 'domainJoinSAPassSecret'
+param vmUserName           = 'SkynetAdmin'
+param vmSecretName         = 'vmPasswordSecret'
+
+// --- UI-driven values ---
 param vmName              = '$(Escape-SingleQuotes $vmName)'
 param vnetName            = '$(Escape-SingleQuotes $vnetName)'
 param vNetResourceGroup   = '$(Escape-SingleQuotes $vNetResourceGroup)'
@@ -681,8 +693,11 @@ param dept                = '$(Escape-SingleQuotes $dept)'
 param env                 = '$(Escape-SingleQuotes $env)'
 param app                 = '$(Escape-SingleQuotes $app)'
 param owner               = '$(Escape-SingleQuotes $owner)'
-param ouDistinguishedName = '$(Escape-SingleQuotes $selectedOU)'
+param ouPath              = '$(Escape-SingleQuotes $selectedOU)'
+param resourceGroupName   = '$(Escape-SingleQuotes $resourceGroupName)'
+param sshPublicKey        = '$(Escape-SingleQuotes $sshPublicKey)'
 "@
+
 
             Set-Content -Path $paramPath -Value $paramContent -Force -Encoding UTF8
 
@@ -731,7 +746,7 @@ az deployment group create `
   env='$env' `
   app='$app' `
   owner='$owner' `
-  ouDistinguishedName='$selectedOU'
+  ouPath='$selectedOU'
 "@
 
             Invoke-Expression $bicepCommand

@@ -13,7 +13,7 @@ param vmPassword             = az.getSecret('d3c58f05-ba94-4319-ba03-af2cde1d852
 param domainJoinUserPassword = az.getSecret('d3c58f05-ba94-4319-ba03-af2cde1d8529', 'sandbox-rg', kvname, domainJoinSecretName)
 
 // --- UI-driven values ---
-param vmName              = 'azskynetwin2'
+param vmName              = 'azskynetwin3'
 param vnetName            = 'skynet-aznet'
 param vNetResourceGroup   = 'sandbox-rg'
 param subnetName          = 'skynet-azsubnet'
@@ -23,7 +23,7 @@ param vmSize              = 'Standard_D1_v2'
 param storageAccountType  = 'Standard_LRS'
 param OS                  = 'Server2022'
 param location            = 'eastus'
-param IP                  = '10.128.0.12'
+param IP                  = '10.128.0.15'
 param dept                = 'IT'
 param env                 = 'test'
 param app                 = 'VS Code'

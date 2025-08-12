@@ -13,7 +13,7 @@ param vmPassword             = az.getSecret('d3c58f05-ba94-4319-ba03-af2cde1d852
 param domainJoinUserPassword = az.getSecret('d3c58f05-ba94-4319-ba03-af2cde1d8529', '', kvname, domainJoinSecretName)
 
 // --- UI-driven values ---
-param vmName              = 'azskynetwin4'
+param vmName              = 'azskynetwin5'
 param vnetName            = 'skynet-aznet'
 param vNetResourceGroup   = 'sandbox-rg'
 param subnetName          = 'skynet-azsubnet'
@@ -23,11 +23,11 @@ param vmSize              = 'Standard_DS1_v2'
 param storageAccountType  = 'Standard_LRS'
 param OS                  = 'Server2022'
 param location            = 'eastus'
-param IP                  = '10.128.0.17'
+param IP                  = '10.128.0.15'
 param dept                = 'IT'
 param env                 = 'test'
 param app                 = 'VS Code'
 param owner               = 'Server Team'
-param ouPath              = 'OU=Skynet Azure,OU=Skynet,DC=SkyN3t,DC=local'
+param ouPath              = 'OU=Windows,OU=Security_Hardened,OU=Servers,OU=Skynet Azure,OU=Skynet,DC=SkyN3t,DC=local'
 param resourceGroupName   = 'sandbox-rg'
 param sshPublicKey        = ''

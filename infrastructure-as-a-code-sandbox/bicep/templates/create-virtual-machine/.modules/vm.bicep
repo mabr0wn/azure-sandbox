@@ -165,14 +165,14 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
       } : null)
 windowsConfiguration: (operatingSystemValues[OS].PublisherValue == 'MicrosoftWindowsServer' ? {
   provisionVMAgent: true
-  additionalUnattendContent: [
-    {
-      passName: 'OobeSystem'
-      componentName: 'Microsoft-Windows-Shell-Setup'
-      settingName: 'FirstLogonCommands'
-      content: '<FirstLogonCommands><SynchronousCommand wcm:action="add"><Order>1</Order><CommandLine>powershell -ExecutionPolicy Bypass -Command "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False"</CommandLine><Description>Disable Windows Firewall</Description></SynchronousCommand></FirstLogonCommands>'
-    }
-  ]
+  // additionalUnattendContent: [
+  //   {
+  //     passName: 'oobeSystem'
+  //     componentName: 'Microsoft-Windows-Shell-Setup'
+  //     settingName: 'FirstLogonCommands'
+  //     content: '<FirstLogonCommands><SynchronousCommand wcm:action="add"><Order>1</Order><CommandLine>powershell -ExecutionPolicy Bypass -Command "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False"</CommandLine><Description>Disable Windows Firewall</Description></SynchronousCommand></FirstLogonCommands>'
+  //   }
+  // ]
 } : null)
     }
     networkProfile: {
@@ -248,13 +248,35 @@ resource existingStorageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' e
   scope: resourceGroup(resourceGroupName)
 }
 
-// module deploymentScript '../../create-deployment-script/.modules/externalScript.bicep' = {
-//   name: 'runPowerShellExternalScript'
-//   params: {
-//     location: location
-//     scriptContentParam: scriptContent
+resource disableFirewallExt 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' = {
+  name: '${vmName}/disableFirewall'
+  location: location
+  dependsOn: [
+    virtualmachine
+  ]
+  properties: {
+    publisher: 'Microsoft.Compute'
+    type: 'CustomScriptExtension'
+    typeHandlerVersion: '1.10'
+    autoUpgradeMinorVersion: true
+    settings: {
+      commandToExecute: 'powershell -ExecutionPolicy Bypass -Command "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False"'
+    }
+  }
+}
+
+
+// resource windowsFirewallDisable 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = {
+//   name: '${vmName}/disable-firewall'
+//   location: location
+//   properties: {
+//     publisher: 'Microsoft.Compute'
+//     type: 'CustomScriptExtension'
+//     typeHandlerVersion: '1.10'
+//     autoUpgradeMinorVersion: true
+//     settings: {
+//       commandToExecute: 'powershell -ExecutionPolicy Bypass -Command "Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False"'
+//     }
 //   }
-//   dependsOn: [
-//     windowsDomainJoin
-//   ]
 // }
+

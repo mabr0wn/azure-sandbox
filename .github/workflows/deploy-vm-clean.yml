@@ -2,7 +2,9 @@ name: Deploy VM (Bicep) and Clean Params
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+      - dev
     paths:
       - 'infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/**'
 

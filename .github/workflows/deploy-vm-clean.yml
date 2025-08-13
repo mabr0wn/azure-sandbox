@@ -9,8 +9,8 @@ on:
       - 'infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/**'
 
 permissions:
-  contents: write        # needed so the cleanup job can push the deletion commit
-  id-token: write        # needed if you later switch to OIDC login (optional)
+  contents: write
+  id-token: write
 
 jobs:
   deploy-and-clean:
@@ -25,19 +25,23 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Pick the latest *.bicepparam in the folder, excluding "main.bicepparam"
       - name: Select latest .bicepparam
         id: pick
         shell: bash
         run: |
           set -euo pipefail
-          PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/params"
-          # find latest modified .bicepparam; allow no files gracefully
-          latest=$(ls -t "$PARAM_DIR"/*.bicepparam 2>/dev/null | head -n1 || true)
-          if [ -z "$latest" ]; then
-            echo "No .bicepparam files found. Nothing to deploy."
+          PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine"
+
+          # list newest first, exclude main.bicepparam if it exists
+          latest=$(ls -t "$PARAM_DIR"/*.bicepparam 2>/dev/null | grep -vE '/main\.bicepparam$' | head -n1 || true)
+
+          if [ -z "${latest:-}" ]; then
+            echo "No transient .bicepparam files found. Nothing to deploy."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
           echo "param_file=$latest" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
           echo "Selected param file: $latest"
@@ -54,20 +58,19 @@ jobs:
           deploymentName:     vm-deploy-${{ github.run_number }}
           failOnStdErr:       false
 
-      # Clean up only if deploy succeeded
-      - name: Cleanup param files and push
+      # Clean up ONLY the param file that was just used
+      - name: Cleanup selected param file and push
         if: steps.pick.outputs.skip == 'false' && success()
         shell: bash
         run: |
           set -euo pipefail
-          PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/params"
-          # Remove all param files from params/ to keep repo clean
-          if ls "$PARAM_DIR"/*.bicepparam >/dev/null 2>&1; then
+          file="${{ steps.pick.outputs.param_file }}"
+          if [ -f "$file" ]; then
             git config user.name  "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git rm -f "$PARAM_DIR"/*.bicepparam
-            git commit -m "cleanup: remove transient .bicepparam files after successful deploy"
+            git rm -f "$file"
+            git commit -m "cleanup: remove transient ${file##*/} after successful deploy"
             git push
           else
-            echo "No .bicepparam files to clean."
+            echo "Selected param file already gone: $file"
           fi

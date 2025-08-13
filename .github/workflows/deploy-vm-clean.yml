@@ -1,0 +1,71 @@
+name: Deploy VM (Bicep) and Clean Params
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/**'
+
+permissions:
+  contents: write        # needed so the cleanup job can push the deletion commit
+  id-token: write        # needed if you later switch to OIDC login (optional)
+
+jobs:
+  deploy-and-clean:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log into Azure (service principal JSON)
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Select latest .bicepparam
+        id: pick
+        shell: bash
+        run: |
+          set -euo pipefail
+          PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/params"
+          # find latest modified .bicepparam; allow no files gracefully
+          latest=$(ls -t "$PARAM_DIR"/*.bicepparam 2>/dev/null | head -n1 || true)
+          if [ -z "$latest" ]; then
+            echo "No .bicepparam files found. Nothing to deploy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "param_file=$latest" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "Selected param file: $latest"
+
+      - name: Deploy Bicep (resource group scope)
+        if: steps.pick.outputs.skip == 'false'
+        uses: azure/arm-deploy@v1
+        with:
+          scope: resourcegroup
+          subscriptionId:     ${{ secrets.AZURE_SUBSCRIPTION }}
+          resourceGroupName:  ${{ secrets.AZURE_RG }}
+          template:           ./infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/main.bicep
+          parameters:         ${{ steps.pick.outputs.param_file }}
+          deploymentName:     vm-deploy-${{ github.run_number }}
+          failOnStdErr:       false
+
+      # Clean up only if deploy succeeded
+      - name: Cleanup param files and push
+        if: steps.pick.outputs.skip == 'false' && success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/params"
+          # Remove all param files from params/ to keep repo clean
+          if ls "$PARAM_DIR"/*.bicepparam >/dev/null 2>&1; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git rm -f "$PARAM_DIR"/*.bicepparam
+            git commit -m "cleanup: remove transient .bicepparam files after successful deploy"
+            git push
+          else
+            echo "No .bicepparam files to clean."
+          fi

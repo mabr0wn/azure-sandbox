@@ -648,27 +648,42 @@ $submitButton.Add_Click({
         Show-Warn 'Please fill in all required fields!'
         return
     }
-
     try {
-        if ($commitOnly) {
-            if ([string]::IsNullOrWhiteSpace($repoPath) -or -not (Test-Path $repoPath)) {
-                Show-Warn "Please select a valid Git repository path."
-                return
+    if ($commitOnly) {
+        if ([string]::IsNullOrWhiteSpace($repoPath) -or -not (Test-Path $repoPath)) {
+            Show-Warn "Please select a valid Git repository path."
+            return
+        }
+        $gitFolder = Join-Path $repoPath ".git"
+        if (-not (Test-Path $gitFolder)) {
+            Show-Warn "Selected folder is not a Git repo (missing .git)."
+            return
+        }
+
+        # --- Helpers (guard so we don't redefine if user clicks twice) ---
+        if (-not (Get-Command Sanitize-ForFileName -ErrorAction SilentlyContinue)) {
+            function Sanitize-ForFileName {
+                param([string]$s)
+                if (-not $s) { return "unnamed" }
+                # keep letters, numbers and dash, replace others with underscore
+                return ($s -replace '[^A-Za-z0-9\-]', '_')
             }
-            $gitFolder = Join-Path $repoPath ".git"
-            if (-not (Test-Path $gitFolder)) {
-                Show-Warn "Selected folder is not a Git repo (missing .git)."
-                return
-            }
+        }
 
-            # Relative path inside repo and absolute path to write
-            $paramRelPath = Join-Path "infrastructure-as-a-code-sandbox" "bicep\templates\create-virtual-machine\main.bicepparam"
-            $paramPath    = Join-Path $repoPath $paramRelPath
+        # --- Unique, repo-relative param file path ---
+        $vmNameSafe = Sanitize-ForFileName $vmName
+        $stamp      = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $paramFile  = "main-$vmNameSafe-$stamp.bicepparam"
 
-            # Ensure directory exists
-            $null = New-Item -ItemType Directory -Path (Split-Path $paramPath) -Force
+        # Repo-relative directory for param files
+        $paramRelDir  = Join-Path "infrastructure-as-a-code-sandbox" "bicep\templates\create-virtual-machine"
+        $paramRelPath = Join-Path $paramRelDir $paramFile
+        $paramPath    = Join-Path $repoPath   $paramRelPath
 
-            # Build .bicepparam content (closing "@ must be at column 1)\
+        # Ensure directory exists
+        $null = New-Item -ItemType Directory -Path (Split-Path $paramPath) -Force
+
+        # Build .bicepparam content (closing "@ must be at column 1)
 
 # Make sure you're logged in to the right tenant/sub first
 $subId = (az account show --query id -o tsv).Trim()
@@ -711,38 +726,43 @@ param sshPublicKey        = ''
 
 
 
-            # Write file
-            Set-Content -Path $paramPath -Value $paramContent -Force -Encoding UTF8
+        # Write file
+        Set-Content -Path $paramPath -Value $paramContent -Force -Encoding UTF8
 
-            Push-Location $repoPath
-            try {
-                # checkout branch (create if missing)
-                git rev-parse --verify $branch 2>$null | Out-Null
-                if ($LASTEXITCODE -ne 0) { git checkout -b $branch } else { git checkout $branch }
-
-                # Stage the correct file (relative to repo root)
-                git add -- $paramRelPath
-
-                # Commit only if there is an actual change
-                $changed = git status --porcelain -- $paramRelPath
-                if ([string]::IsNullOrWhiteSpace($changed)) {
-                    [System.Windows.Forms.MessageBox]::Show("No changes in $paramRelPath - nothing to commit.", "Info") | Out-Null
-                } else {
-                    if ([string]::IsNullOrWhiteSpace($commitMsg)) { $commitMsg = "Auto: VM params" }
-                    git commit -m $commitMsg
-                    git push origin $branch
-                    [System.Windows.Forms.MessageBox]::Show("Committed and pushed $paramRelPath to '$branch'.", "Info") | Out-Null
-
-                    # Close the form after successful commit/push
-                    $form.Close()
-                    
-                }
+        Push-Location $repoPath
+        try {
+            # Make sure we're up to date to avoid non-fast-forward
+            git fetch origin 2>$null | Out-Null
+        
+            # checkout branch (create if missing)
+            git rev-parse --verify $branch 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { git checkout -b $branch } else { git checkout $branch }
+        
+            # Rebase onto latest remote branch to reduce push races
+            git pull --rebase origin $branch 2>$null | Out-Null
+        
+            # Stage only this run's param file
+            git add -- $paramRelPath
+        
+            # Commit only if there is an actual change
+            $changed = git status --porcelain -- $paramRelPath
+            if ([string]::IsNullOrWhiteSpace($changed)) {
+                [System.Windows.Forms.MessageBox]::Show("No changes in $paramRelPath - nothing to commit.", "Info") | Out-Null
+            } else {
+                if ([string]::IsNullOrWhiteSpace($commitMsg)) { $commitMsg = "vm:$vmName params:$paramFile" }
+                git commit -m $commitMsg
+                git push origin $branch
+            
+                [System.Windows.Forms.MessageBox]::Show("Committed and pushed $paramRelPath to '$branch'.", "Info") | Out-Null
+                $form.Close()
             }
-            finally {
-                Pop-Location
-            }
+        }
+        finally {
+            Pop-Location
+        }
 
-            return
+        return
+
         }
         else {
             if ([string]::IsNullOrWhiteSpace($bicepParamFile) -or -not (Test-Path $bicepParamFile)) {

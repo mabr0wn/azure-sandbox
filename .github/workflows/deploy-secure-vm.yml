@@ -329,6 +329,7 @@ jobs:
       # --- COM sweep: install any leftovers the UI still shows ---
       - name: Windows updates (COM sweep - install leftovers)
         if: contains(env.OS_NAME, 'Windows-Server')
+        continue-on-error: true 
         shell: bash
         run: |
           PS_SCRIPT='$ErrorActionPreference=[System.Management.Automation.ActionPreference]::Stop;
@@ -358,7 +359,6 @@ jobs:
       # If COM sweep rebooted, wait for VM to come back
       - name: Wait for VM after COM sweep reboot (optional)
         if: contains(env.OS_NAME, 'Windows-Server')
-        continue-on-error: true 
         shell: bash
         run: |
           set -euo pipefail

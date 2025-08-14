@@ -52,29 +52,44 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           }
 
-          shopt -s nullglob
-          mapfile -t transient < <(ls -t "$PARAM_DIR"/main.*[0-9][0-9][0-9][0-9]*.bicepparam 2>/dev/null || true)
-
-          if (( ${#transient[@]} > 0 )); then
-            latest="${transient[0]}"
-            echo "Selected timestamped param file: $latest"
-            write_output "transient" "true"
-            write_output "skip" "false"
-            write_output "param_file" "$latest"
+          # Any *.bicepparam files at all?
+          if ! compgen -G "$PARAM_DIR/*.bicepparam" > /dev/null; then
+            echo "No .bicepparam files found. Nothing to deploy."
+            write_output "skip" "true"
             exit 0
           fi
 
-          if [ -f "$PARAM_DIR/main.bicepparam" ]; then
-            latest="$PARAM_DIR/main.bicepparam"
-            echo "Selected baseline param file: $latest"
-            write_output "transient" "false"
-            write_output "skip" "false"
-            write_output "param_file" "$latest"
-            exit 0
+          # Prefer timestamped files like main.2025-08-13T1645Z.bicepparam
+          TS_PATTERN="$PARAM_DIR"/main.*.bicepparam
+
+          latest=""
+          if compgen -G "$TS_PATTERN" > /dev/null; then
+            # List only timestamped (exclude baseline main.bicepparam), newest first
+            mapfile -t candidates < <(ls -t -- $TS_PATTERN | grep -v '/main\.bicepparam$' || true)
+            if (( ${#candidates[@]} > 0 )); then
+              latest="${candidates[0]}"
+              echo "Selected timestamped param file: $latest"
+              write_output "transient" "true"
+            fi
           fi
 
-          echo "No .bicepparam files found. Nothing to deploy."
-          write_output "skip" "true"
+          # Fallback to baseline if no timestamped found
+          if [ -z "${latest}" ]; then
+            if [ -f "$PARAM_DIR/main.bicepparam" ]; then
+              latest="$PARAM_DIR/main.bicepparam"
+              echo "Selected baseline param file: $latest"
+              write_output "transient" "false"
+            else
+              echo "Found .bicepparam files, but none matched expected names."
+              write_output "skip" "true"
+              exit 0
+            fi
+          fi
+
+          write_output "skip" "false"
+          write_output "param_file" "$latest"
+          echo "param_file resolved to: [$latest]"
+
 
       - name: Parse vmName from param file
         id: parse

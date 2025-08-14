@@ -342,12 +342,53 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          PS_SCRIPT='$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop; Try { UsoClient RefreshSettings; Start-Sleep -Seconds 5; UsoClient StartScan; Start-Sleep -Seconds 10; UsoClient StartInstall; wuauclt /detectnow; wuauclt /reportnow } Catch { Write-Host "USOClient not available; ignoring." }'
+          PS_SCRIPT='$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop;
+
+          # Make sure WU service is up
+          try { if ((Get-Service wuauserv).Status -ne ''Running'') { Start-Service wuauserv } } catch {}
+
+          function Invoke-Try { param([string]$Cmd) try { Write-Host "-> $Cmd"; & $Cmd 2>$null | Out-Null; Start-Sleep -Seconds 5; $true } catch { $false } }
+
+          $uso = "$env:SystemRoot\System32\usoclient.exe"
+          if (Test-Path $uso) {
+            Invoke-Try "$uso RefreshSettings"       | Out-Null
+            Invoke-Try "$uso StartScan"             | Out-Null
+            Invoke-Try "$uso StartInteractiveScan"  | Out-Null
+            Invoke-Try "$uso StartInstall"          | Out-Null
+            Invoke-Try "$uso ScanInstallWait"       | Out-Null
+          } else {
+            Write-Host "usoclient.exe not found; skipping."
+          }
+
+          # Fallback: kick scheduled tasks that trigger a scan
+          $tasks = @(
+            ''\Microsoft\Windows\WindowsUpdate\Scheduled Start'',
+            ''\Microsoft\Windows\UpdateOrchestrator\Schedule Scan''
+          )
+          foreach ($t in $tasks) {
+            try { schtasks.exe /Run /TN $t 2>$null | Out-Null; Start-Sleep -Seconds 5 } catch {}
+          }
+
+          # Legacy COM detect (works reliably on Server)
+          try { (New-Object -ComObject Microsoft.Update.AutoUpdate).DetectNow() | Out-Null } catch {}
+
+          # Nudge legacy reporting (best-effort)
+          try { cmd /c wuauclt /detectnow & cmd /c wuauclt /reportnow | Out-Null } catch {}
+
+          # Brief wait loop to let Settings refresh its "Last checked" timestamp
+          $deadline = (Get-Date).AddMinutes(3)
+          do {
+            Start-Sleep -Seconds 5
+            try { $last = (New-Object -ComObject Microsoft.Update.AutoUpdate).Results.LastSearchSuccessDate } catch { $last = $null }
+          } while ($null -eq $last -and (Get-Date) -lt $deadline)
+
+          Write-Host "Windows Update UI reconcile complete."'
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
             --scripts "$PS_SCRIPT"
+
 
       # ---------- Linux ----------
       - name: Linux updates (apt)
@@ -463,6 +504,21 @@ jobs:
               --plan publisher=Microsoft product=OMSGallery/SecurityInsights \
               --location "$LOCATION" >/dev/null || echo "::warning::Classic solution creation failed; continuing."
           fi
+
+      - name: Guardrail — keep Defender for Servers at Free
+        if: ${{ env.ENABLE_DEFENDER != 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          TIER=$(az security pricing show --name VirtualMachines --query pricingTier -o tsv || echo Unknown)
+          echo "Current Defender Servers tier: ${TIER:-Unknown}"
+          if [ "${TIER:-Unknown}" != "Free" ]; then
+            echo "Setting Defender for Servers tier to Free..."
+            az security pricing create --name VirtualMachines --tier Free
+          else
+            echo "Already Free. No change."
+          fi    
 
       - name: Tag VM as secured
         shell: bash

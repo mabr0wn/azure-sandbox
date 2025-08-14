@@ -90,7 +90,6 @@ jobs:
           write_output "param_file" "$latest"
           echo "param_file resolved to: [$latest]"
 
-
       - name: Parse vmName from param file
         id: parse
         if: steps.pick.outputs.skip == 'false'
@@ -102,10 +101,8 @@ jobs:
 
           if [ ! -f "$f" ]; then
             echo "::error::Expected a .bicepparam file but got something else."
-            echo "ls -la of candidate:"
-            ls -la -- "$f" || true
-            echo "ls -la of parent dir:"
-            p="$(dirname "$f" || true)"; ls -la -- "$p" || true
+            echo "ls -la of candidate:"; ls -la -- "$f" || true
+            echo "ls -la of parent dir:"; p="$(dirname "$f" || true)"; ls -la -- "$p" || true
             exit 1
           fi
 
@@ -120,7 +117,6 @@ jobs:
             echo "$VM_NAME"
             echo "__EOF__"
           } >> "$GITHUB_OUTPUT"
-
           echo "vmName parsed: $VM_NAME"
 
       - name: Parse OS from param file
@@ -215,7 +211,6 @@ jobs:
       RG: ${{ secrets.AZURE_RG }}
       REGION: ${{ secrets.AZURE_REGION }}
       WORKSPACE: ${{ secrets.AZURE_WORKSPACE }}
-      # Optional: if provided, we'll use/verify this NSG; otherwise we'll create one.
       QUARANTINE_NSG_ID: ${{ secrets.QUARANTINE_NSG_ID }}
 
     steps:
@@ -232,15 +227,22 @@ jobs:
         run: |
           set -euo pipefail
           RG_NAME="$RG"
-          LOCATION="$REGION"
+          # Resolve location: prefer $REGION if provided; else read RG location
+          if [ -n "${REGION:-}" ]; then
+            LOCATION="$REGION"
+          else
+            LOCATION="$(az group show -n "$RG_NAME" --query location -o tsv)"
+          fi
+          echo "Using location: [$LOCATION] for quarantine NSG"
 
+          # If a QUARANTINE_NSG_ID secret was provided, verify and use it
           if [ -n "${QUARANTINE_NSG_ID:-}" ]; then
             if az resource show --ids "$QUARANTINE_NSG_ID" >/dev/null 2>&1; then
               echo "Using provided QUARANTINE_NSG_ID."
               echo "QUARANTINE_NSG_ID=$QUARANTINE_NSG_ID" >> "$GITHUB_ENV"
               exit 0
             else
-              echo "Provided QUARANTINE_NSG_ID not found; creating default quarantine NSG."
+              echo "Provided QUARANTINE_NSG_ID not found; creating a default quarantine NSG."
             fi
           fi
 
@@ -248,6 +250,7 @@ jobs:
           if ! az network nsg show -g "$RG_NAME" -n "$NSG_NAME" >/dev/null 2>&1; then
             echo "Creating quarantine NSG '$NSG_NAME' in $RG_NAME ($LOCATION)..."
             az network nsg create -g "$RG_NAME" -n "$NSG_NAME" -l "$LOCATION" >/dev/null
+            # Deny-all inbound/outbound to isolate the VM
             az network nsg rule create -g "$RG_NAME" --nsg-name "$NSG_NAME" \
               -n DenyAllInbound --priority 100 --access Deny --direction Inbound \
               --protocol '*' --source-address-prefixes '*' --source-port-ranges '*' \
@@ -264,6 +267,29 @@ jobs:
           echo "Resolved QUARANTINE_NSG_ID: $NSG_ID"
           echo "QUARANTINE_NSG_ID=$NSG_ID" >> "$GITHUB_ENV"
 
+      - name: Wait for VM to be running
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            STATE=$(az vm get-instance-view -g "$RG" -n "$VM_NAME" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].code" -o tsv || true)
+            echo "Current power state: $STATE"
+            if [ "$STATE" = "PowerState/running" ]; then
+              echo "VM is running."
+              exit 0
+            fi
+            echo "Waiting 20s for VM to be running..."
+            sleep 20
+          done
+          echo "::error::VM did not reach running state in time."
+          exit 1
+
+      - name: Ensure az security extension
+        shell: bash
+        run: |
+          set -euo pipefail
+          az extension add --name security --upgrade -y || true
+
       - name: Windows updates (Security & Critical)
         if: contains(env.OS_NAME, 'Windows-Server')
         run: |
@@ -277,6 +303,23 @@ jobs:
                      "Install-Module PSWindowsUpdate -Force" \
                      "Import-Module PSWindowsUpdate" \
                      "Install-WindowsUpdate -Category 'SecurityUpdates','CriticalUpdates' -AcceptAll -AutoReboot"
+
+      - name: Wait for VM after Windows auto-reboot
+        if: contains(env.OS_NAME, 'Windows-Server')
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in {1..45}; do
+            STATE=$(az vm get-instance-view -g "$RG" -n "$VM_NAME" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].code" -o tsv || true)
+            echo "Current power state: $STATE"
+            if [ "$STATE" = "PowerState/running" ]; then
+              echo "VM back online."
+              exit 0
+            fi
+            echo "Waiting 20s for VM to come back..."
+            sleep 20
+          done
+          echo "::warning::VM did not report running after reboot; continuing anyway."
 
       - name: Linux updates (apt)
         if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')
@@ -315,14 +358,24 @@ jobs:
 
       - name: Enable Defender for Servers
         if: steps.policy.outputs.non_compliant != 'true'
+        continue-on-error: true
         run: az security pricing create --name VirtualMachines --tier Standard
 
       - name: Attach to Sentinel (Log Analytics)
         if: steps.policy.outputs.non_compliant != 'true'
+        continue-on-error: true
+        shell: bash
         run: |
-          az security workspace-setting create \
-            --name SentinelWorkspace \
-            --target-workspace "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.OperationalInsights/workspaces/$WORKSPACE"
+          set -euo pipefail
+          # If WORKSPACE contains a full resource ID, you can set TARGET="$WORKSPACE"
+          TARGET="/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.OperationalInsights/workspaces/$WORKSPACE"
+          EXISTING=$(az security workspace-setting list --query "[0].id" -o tsv || true)
+          if [ -n "$EXISTING" ]; then
+            echo "Workspace setting already exists: $EXISTING"
+            az security workspace-setting update --name "$(basename "$EXISTING")" --target-workspace "$TARGET"
+          else
+            az security workspace-setting create --name SentinelWorkspace --target-workspace "$TARGET"
+          fi
 
       - name: Tag VM as secured
         if: steps.policy.outputs.non_compliant != 'true'

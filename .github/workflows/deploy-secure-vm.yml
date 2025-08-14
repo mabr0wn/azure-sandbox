@@ -326,6 +326,51 @@ jobs:
           done
           echo "::warning::VM didn't report running again within the wait window."
 
+      # --- COM sweep: install any leftovers the UI still shows ---
+      - name: Windows updates (COM sweep - install leftovers)
+        if: contains(env.OS_NAME, 'Windows-Server')
+        shell: bash
+        run: |
+          PS_SCRIPT='$ErrorActionPreference=[System.Management.Automation.ActionPreference]::Stop;
+          # Search for all not-installed, not-hidden updates
+          $session  = New-Object -ComObject Microsoft.Update.Session
+          $searcher = $session.CreateUpdateSearcher()
+          $result   = $searcher.Search("IsInstalled=0 and IsHidden=0")
+          $toInstall = New-Object -ComObject Microsoft.Update.UpdateColl
+          foreach ($u in $result.Updates) {
+            try { if (-not $u.EulaAccepted) { $u.AcceptEula() } } catch { }
+            [void]$toInstall.Add($u)
+          }
+          if ($toInstall.Count -gt 0) {
+            $down = $session.CreateUpdateDownloader(); $down.Updates = $toInstall; [void]$down.Download()
+            $inst = $session.CreateUpdateInstaller();  $inst.Updates = $toInstall; $r = $inst.Install()
+            Write-Host ("COM sweep installed {0} updates. RebootRequired={1}" -f $r.Updates.Count, $r.RebootRequired)
+            if ($r.RebootRequired) { Restart-Computer -Force }
+          } else {
+            Write-Host "COM sweep: nothing to install."
+          }'
+          az vm run-command invoke \
+            --resource-group "$RG" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts "$PS_SCRIPT"
+      
+      # If COM sweep rebooted, wait for VM to come back
+      - name: Wait for VM after COM sweep reboot (optional)
+        if: contains(env.OS_NAME, 'Windows-Server')
+        continue-on-error: true 
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            STATE=$(az vm get-instance-view -g "$RG" -n "$VM_NAME" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].code" -o tsv || true)
+            echo "Power state: $STATE"
+            if [ "$STATE" = "PowerState/running" ]; then exit 0; fi
+            sleep 20
+          done
+          echo "::warning::VM did not report running again within the wait window."
+
+
       - name: Windows updates (final verify)
         if: contains(env.OS_NAME, 'Windows-Server')
         shell: bash
@@ -343,41 +388,65 @@ jobs:
         shell: bash
         run: |
           PS_SCRIPT='$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop;
-          try { if ((Get-Service -Name wuauserv).Status -ne "Running") { Start-Service -Name wuauserv } } catch { }
-
+      
+          # 1) Ensure Windows Update service is running
+          try { if ((Get-Service -Name wuauserv -ErrorAction Stop).Status -ne "Running") { Start-Service -Name wuauserv } } catch { }
+      
+          # 2) USOClient nudges (modern WU)
           $uso = "$env:SystemRoot\System32\usoclient.exe"
           if (Test-Path $uso) {
-            & $uso RefreshSettings; Start-Sleep -Seconds 5
-            & $uso StartScan;       Start-Sleep -Seconds 10
-            & $uso StartInstall
-            & $uso ScanInstallWait
+            foreach ($cmd in "RefreshSettings","StartScan","StartInteractiveScan","StartInstall","ScanInstallWait") {
+              try { & $uso $cmd 2>$null | Out-Null; Start-Sleep -Seconds 5 } catch { }
+            }
           } else {
             Write-Host "usoclient.exe not found; skipping."
           }
-
-          # Kick scheduled scan tasks (works even if USOClient is blocked)
-          schtasks.exe /Run /TN "\Microsoft\Windows\WindowsUpdate\Scheduled Start" 2>$null | Out-Null
-          schtasks.exe /Run /TN "\Microsoft\Windows\UpdateOrchestrator\Schedule Scan" 2>$null | Out-Null
-
-          # Legacy COM detect + legacy reporting (best-effort)
+      
+          # 3) Scheduled task nudges ONLY if on-demand start is allowed
+          $tasks = @(
+            @{ Path = "\Microsoft\Windows\WindowsUpdate\"      ; Name = "Scheduled Start" },
+            @{ Path = "\Microsoft\Windows\UpdateOrchestrator\" ; Name = "Schedule Scan"   }
+          )
+          foreach ($t in $tasks) {
+            try {
+              $task = Get-ScheduledTask -TaskPath $t.Path -TaskName $t.Name -ErrorAction Stop
+              if ($task.Settings.AllowStartOnDemand) {
+                Start-ScheduledTask -TaskPath $t.Path -TaskName $t.Name -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 5
+              } else {
+                Write-Host ("Task ''{0}{1}'' does not allow on-demand start; skipping." -f $t.Path,$t.Name)
+              }
+            } catch { }
+          }
+      
+          # 4) COM-based detect + explicit search (reliably bumps Last checked)
           try { (New-Object -ComObject Microsoft.Update.AutoUpdate).DetectNow() | Out-Null } catch { }
-          try { cmd /c wuauclt /detectnow   | Out-Null } catch { }
-          try { cmd /c wuauclt /reportnow   | Out-Null } catch { }
-
-          # Give Settings a moment to refresh its "Last checked" time
+          try {
+            $session  = New-Object -ComObject Microsoft.Update.Session
+            $searcher = $session.CreateUpdateSearcher()
+            # This triggers a scan; result not used, errors ignored
+            $null = $searcher.Search("IsInstalled=0 and Type=''Software''")
+          } catch { }
+      
+          # 5) Legacy reporting (best-effort)
+          try { Start-Process -FilePath "wuauclt.exe" -ArgumentList "/detectnow" -NoNewWindow } catch { }
+          try { Start-Process -FilePath "wuauclt.exe" -ArgumentList "/reportnow" -NoNewWindow } catch { }
+      
+          # 6) Wait up to ~3 minutes for UI to refresh "Last checked"
           $deadline = (Get-Date).AddMinutes(3)
           do {
             Start-Sleep -Seconds 5
             try { $last = (New-Object -ComObject Microsoft.Update.AutoUpdate).Results.LastSearchSuccessDate } catch { $last = $null }
           } while ($null -eq $last -and (Get-Date) -lt $deadline)
-
+      
           Write-Host "Windows Update UI reconcile complete."'
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
             --scripts "$PS_SCRIPT"
-         
+      
+               
 
       # ---------- Linux ----------
       - name: Linux updates (apt)

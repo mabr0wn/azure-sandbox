@@ -205,6 +205,10 @@ jobs:
       RG: ${{ secrets.AZURE_RG }}
       REGION: ${{ secrets.AZURE_REGION }}
       QUARANTINE_NSG_ID: ${{ secrets.QUARANTINE_NSG_ID }}
+      # ---- feature flags (default off to avoid charges) ----
+      ENABLE_DEFENDER: 'false'
+      ENABLE_LA: 'false'
+      ENABLE_SENTINEL: 'false'
 
     steps:
       - name: Checkout
@@ -270,7 +274,7 @@ jobs:
         if: contains(env.OS_NAME, 'Windows-Server')
         shell: bash
         run: |
-          PS_SCRIPT='$ErrorActionPreference=''Stop''; Set-ExecutionPolicy Bypass -Scope Process -Force; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; Set-PSRepository -Name ''PSGallery'' -InstallationPolicy Trusted; Install-Module PSWindowsUpdate -Force; Import-Module PSWindowsUpdate; Add-WUServiceManager -MicrosoftUpdate -Confirm:$false | Out-Null; Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose'
+          PS_SCRIPT='$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop; Set-ExecutionPolicy Bypass -Scope Process -Force; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; Set-PSRepository -Name ''PSGallery'' -InstallationPolicy Trusted; Install-Module PSWindowsUpdate -Force; Import-Module PSWindowsUpdate; Add-WUServiceManager -MicrosoftUpdate -Confirm:$false | Out-Null; Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose'
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
@@ -298,7 +302,7 @@ jobs:
         if: contains(env.OS_NAME, 'Windows-Server')
         shell: bash
         run: |
-          PS_SCRIPT='Import-Module PSWindowsUpdate; Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose'
+          PS_SCRIPT='$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop; Import-Module PSWindowsUpdate; Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose'
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
@@ -326,7 +330,7 @@ jobs:
         if: contains(env.OS_NAME, 'Windows-Server')
         shell: bash
         run: |
-          PS_SCRIPT='Import-Module PSWindowsUpdate; $p = Get-WindowsUpdate -MicrosoftUpdate -IgnoreReboot | Where-Object { -not $_.IsInstalled }; if ($p) { Write-Host "Remaining updates:" ($p | Select-Object Title,KB,Size | Out-String) } else { Write-Host "No pending updates detected." }'
+          PS_SCRIPT='$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop; Import-Module PSWindowsUpdate; $p = Get-WindowsUpdate -MicrosoftUpdate -IgnoreReboot | Where-Object { -not $_.IsInstalled }; if ($p) { Write-Host "Remaining updates:" ($p | Select-Object Title,KB,Size | Out-String) } else { Write-Host "No pending updates detected." }'
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
@@ -338,13 +342,13 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          PS_SCRIPT='Try { UsoClient RefreshSettings; Start-Sleep -Seconds 5; UsoClient StartScan; Start-Sleep -Seconds 10; UsoClient StartInstall; wuauclt /detectnow; wuauclt /reportnow } Catch { Write-Host "USOClient not available; ignoring." }'
+          PS_SCRIPT='$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop; Try { UsoClient RefreshSettings; Start-Sleep -Seconds 5; UsoClient StartScan; Start-Sleep -Seconds 10; UsoClient StartInstall; wuauclt /detectnow; wuauclt /reportnow } Catch { Write-Host "USOClient not available; ignoring." }'
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
             --scripts "$PS_SCRIPT"
-            
+
       # ---------- Linux ----------
       - name: Linux updates (apt)
         if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')
@@ -356,11 +360,14 @@ jobs:
             --command-id RunShellScript \
             --scripts "sudo apt-get update" "sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade"
 
+      # ---------- Defender / LA / Sentinel (all gated) ----------
       - name: Enable Defender for Servers
+        if: env.ENABLE_DEFENDER == 'true'
         shell: bash
         run: az security pricing create --name VirtualMachines --tier Standard
 
       - name: Ensure Log Analytics workspace exists (auto-create)
+        if: env.ENABLE_LA == 'true'
         id: la_ws
         shell: bash
         run: |
@@ -400,6 +407,7 @@ jobs:
           echo "WORKSPACE_ID=$WS_ID" >> "$GITHUB_ENV"
 
       - name: Attach Defender default workspace-setting to Log Analytics (optional)
+        if: env.ENABLE_LA == 'true'
         continue-on-error: true
         shell: bash
         run: |
@@ -412,7 +420,8 @@ jobs:
             echo "Defender workspace-setting configured."
           fi
 
-      - name: Enable Microsoft Sentinel on the workspace (idempotent with retry)  # optional
+      - name: Enable Microsoft Sentinel on the workspace (idempotent with retry)
+        if: env.ENABLE_SENTINEL == 'true'
         continue-on-error: true
         shell: bash
         run: |
@@ -443,7 +452,6 @@ jobs:
             sleep 10
           done
 
-          # Fallback to classic solution (best-effort)
           if ! az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
                --query properties.onboardingState -o tsv 2>/dev/null | grep -q Onboarded; then
             echo "Falling back to classic SecurityInsights solution..."

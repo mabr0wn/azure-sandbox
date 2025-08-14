@@ -1,0 +1,282 @@
+name: Deploy VM (Bicep) + Secure + Clean
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - 'infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: vm-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-and-clean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      skip: ${{ steps.pick.outputs.skip }}
+      transient: ${{ steps.pick.outputs.transient }}
+      param_file: ${{ steps.pick.outputs.param_file }}
+      vm_name: ${{ steps.parse.outputs.vm_name }}
+      os: ${{ steps.parse_os.outputs.os }}
+      os_norm: ${{ steps.os_norm.outputs.os_norm }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Select latest .bicepparam (prefer timestamped)
+        id: pick
+        shell: bash
+        run: |
+          set -euo pipefail
+          PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine"
+
+          # Prefer timestamped "transient" param files: main.2025-08-13T1645Z.bicepparam, main.20250813-1645.bicepparam, etc.
+          shopt -s nullglob
+          mapfile -t transient < <(ls -t "$PARAM_DIR"/main.*[0-9][0-9][0-9][0-9]*.bicepparam 2>/dev/null || true)
+
+          if (( ${#transient[@]} > 0 )); then
+            latest="${transient[0]}"
+            echo "Selected timestamped param file: $latest"
+            echo "transient=true" >> "$GITHUB_OUTPUT"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "param_file=$latest" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -f "$PARAM_DIR/main.bicepparam" ]; then
+            latest="$PARAM_DIR/main.bicepparam"
+            echo "Selected baseline param file: $latest"
+            echo "transient=false" >> "$GITHUB_OUTPUT"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "param_file=$latest" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "No .bicepparam files found. Nothing to deploy."
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+
+      - name: Parse vmName from param file
+        id: parse
+        if: steps.pick.outputs.skip == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          f="${{ steps.pick.outputs.param_file }}"
+          VM_NAME=$(grep -Po "^param\s+vmName\s*=\s*'\K[^']+" "$f" || true)
+          if [ -z "$VM_NAME" ]; then
+            echo "Could not parse vmName from $f" >&2
+            exit 1
+          fi
+          echo "vm_name=$VM_NAME" >> "$GITHUB_OUTPUT"
+          echo "vmName parsed: $VM_NAME"
+
+      - name: Parse OS from param file
+        id: parse_os
+        if: steps.pick.outputs.skip == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          f="${{ steps.pick.outputs.param_file }}"
+          OS_VAL=$(grep -Po "^param\s+OS\s*=\s*'\K[^']+" "$f" || true)
+          if [ -z "$OS_VAL" ]; then
+            echo "Could not parse OS from $f" >&2
+            exit 1
+          fi
+          echo "os=$OS_VAL" >> "$GITHUB_OUTPUT"
+          echo "OS parsed: $OS_VAL"
+
+      - name: Normalize OS name for secure step
+        id: os_norm
+        if: steps.pick.outputs.skip == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ steps.parse_os.outputs.os }}"
+          norm="$raw"
+          if [[ "$raw" =~ ^Server(2022|2019|2016)$ ]]; then norm="Windows-Server"; fi
+          if [[ "$raw" =~ ^Ubuntu(22|20) ]]; then norm="Ubuntu"; fi
+          if [[ "$raw" =~ ^Debian(12|11) ]]; then norm="Debian"; fi
+          echo "os_norm=$norm" >> "$GITHUB_OUTPUT"
+          echo "Normalized OS: $norm"
+
+      - name: Show picked values
+        if: steps.pick.outputs.skip == 'false'
+        run: |
+          echo "PARAM:    ${{ steps.pick.outputs.param_file }}"
+          echo "VM_NAME:  ${{ steps.parse.outputs.vm_name }}"
+          echo "OS_RAW:   ${{ steps.parse_os.outputs.os }}"
+          echo "OS_NORM:  ${{ steps.os_norm.outputs.os_norm }}"
+
+      - name: Deploy Bicep (resource group scope)
+        if: steps.pick.outputs.skip == 'false'
+        uses: azure/arm-deploy@v1
+        with:
+          scope: resourcegroup
+          subscriptionId:     ${{ secrets.AZURE_SUBSCRIPTION }}
+          resourceGroupName:  ${{ secrets.AZURE_RG }}
+          template:           ./infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine/main.bicep
+          parameters:         ${{ steps.pick.outputs.param_file }}
+          deploymentName:     vm-deploy-${{ github.run_number }}
+          failOnStdErr:       false
+
+      - name: Cleanup timestamped param files
+        if: steps.pick.outputs.skip == 'false' && success() && steps.pick.outputs.transient == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine"
+          shopt -s nullglob
+          files=( "$PARAM_DIR"/main.*[0-9][0-9][0-9][0-9]*.bicepparam )
+          if (( ${#files[@]} > 0 )); then
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git rm -f "${files[@]}"
+            git commit -m "cleanup: remove transient timestamped .bicepparam after successful deploy [skip ci]"
+            git push
+          else
+            echo "No timestamped .bicepparam files to clean."
+          fi
+
+  secure-vm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: deploy-and-clean
+    if: needs.deploy-and-clean.outputs.skip == 'false' && success()
+    env:
+      VM_NAME: ${{ needs.deploy-and-clean.outputs.vm_name }}
+      OS_NAME: ${{ needs.deploy-and-clean.outputs.os_norm }}
+      SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION }}
+      RG: ${{ secrets.AZURE_RG }}
+      REGION: ${{ secrets.AZURE_REGION }}
+      WORKSPACE: ${{ secrets.AZURE_WORKSPACE }}
+      # Optional: if provided, we'll use/verify this NSG; otherwise we'll create one.
+      QUARANTINE_NSG_ID: ${{ secrets.QUARANTINE_NSG_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # --- Ensure a quarantine NSG exists and get its ID (use secret if valid, else create) ---
+      - name: Ensure Quarantine NSG exists (create if missing)
+        shell: bash
+        run: |
+          set -euo pipefail
+          RG_NAME="$RG"
+          LOCATION="$REGION"
+
+          # If an NSG ID was provided, verify it exists
+          if [ -n "${QUARANTINE_NSG_ID:-}" ]; then
+            if az resource show --ids "$QUARANTINE_NSG_ID" >/dev/null 2>&1; then
+              echo "Using provided QUARANTINE_NSG_ID."
+              echo "QUARANTINE_NSG_ID=$QUARANTINE_NSG_ID" >> "$GITHUB_ENV"
+              exit 0
+            else
+              echo "Provided QUARANTINE_NSG_ID not found; creating a default quarantine NSG."
+            fi
+          fi
+
+          NSG_NAME="quarantine-nsg"
+          if ! az network nsg show -g "$RG_NAME" -n "$NSG_NAME" >/dev/null 2>&1; then
+            echo "Creating quarantine NSG '$NSG_NAME' in $RG_NAME ($LOCATION)..."
+            az network nsg create -g "$RG_NAME" -n "$NSG_NAME" -l "$LOCATION" >/dev/null
+            # Deny-all inbound/outbound to isolate
+            az network nsg rule create -g "$RG_NAME" --nsg-name "$NSG_NAME" \
+              -n DenyAllInbound --priority 100 --access Deny --direction Inbound \
+              --protocol '*' --source-address-prefixes '*' --source-port-ranges '*' \
+              --destination-address-prefixes '*' --destination-port-ranges '*' >/dev/null
+            az network nsg rule create -g "$RG_NAME" --nsg-name "$NSG_NAME" \
+              -n DenyAllOutbound --priority 101 --access Deny --direction Outbound \
+              --protocol '*' --source-address-prefixes '*' --source-port-ranges '*' \
+              --destination-address-prefixes '*' --destination-port-ranges '*' >/dev/null
+          else
+            echo "Quarantine NSG '$NSG_NAME' already exists."
+          fi
+
+          NSG_ID=$(az network nsg show -g "$RG_NAME" -n "$NSG_NAME" --query id -o tsv)
+          echo "Resolved QUARANTINE_NSG_ID: $NSG_ID"
+          echo "QUARANTINE_NSG_ID=$NSG_ID" >> "$GITHUB_ENV"
+
+      - name: Windows updates (Security & Critical)
+        if: contains(env.OS_NAME, 'Windows-Server')
+        run: |
+          az vm run-command invoke \
+            --resource-group "$RG" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts "Set-ExecutionPolicy Bypass -Scope Process -Force" \
+                     "Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force" \
+                     "Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted" \
+                     "Install-Module PSWindowsUpdate -Force" \
+                     "Import-Module PSWindowsUpdate" \
+                     "Install-WindowsUpdate -Category 'SecurityUpdates','CriticalUpdates' -AcceptAll -AutoReboot"
+
+      - name: Linux updates (apt)
+        if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')
+        run: |
+          az vm run-command invoke \
+            --resource-group "$RG" \
+            --name "$VM_NAME" \
+            --command-id RunShellScript \
+            --scripts "sudo apt-get update" \
+                     "sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade"
+
+      - name: Check policy compliance (optional)
+        id: policy
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          RID="/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.Compute/virtualMachines/$VM_NAME"
+          echo "Checking policy for $RID"
+          non=$(az policy state list --resource "$RID" --query "[?complianceState=='NonCompliant']" -o tsv || true)
+          if [ -n "$non" ]; then
+            echo "non_compliant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "non_compliant=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Quarantine non-compliant VM (optional)
+        if: steps.policy.outputs.non_compliant == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          NIC_ID=$(az vm show -g "$RG" -n "$VM_NAME" --query 'networkProfile.networkInterfaces[0].id' -o tsv)
+          az network nic update --ids "$NIC_ID" --network-security-group "$QUARANTINE_NSG_ID"
+          az resource tag --ids "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.Compute/virtualMachines/$VM_NAME" \
+            --tags quarantine=true reason=non_compliance
+
+      - name: Enable Defender for Servers
+        if: steps.policy.outputs.non_compliant != 'true'
+        run: az security pricing create --name VirtualMachines --tier Standard
+
+      - name: Attach to Sentinel (Log Analytics)
+        if: steps.policy.outputs.non_compliant != 'true'
+        run: |
+          az security workspace-setting create \
+            --name SentinelWorkspace \
+            --target-workspace "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.OperationalInsights/workspaces/$WORKSPACE"
+
+      - name: Tag VM as secured
+        if: steps.policy.outputs.non_compliant != 'true'
+        run: |
+          az resource tag \
+            --ids "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.Compute/virtualMachines/$VM_NAME" \
+            --tags environment=production owner=automation compliance=verified

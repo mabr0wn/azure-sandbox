@@ -58,7 +58,6 @@ jobs:
             exit 0
           fi
 
-          # Match ANY timestamped variant: main-..., main.2025..., main_something...
           TS_PATTERN="$PARAM_DIR"/main*.bicepparam
           latest=""
 
@@ -196,7 +195,7 @@ jobs:
 
   secure-vm:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     needs: deploy-and-clean
     if: needs.deploy-and-clean.outputs.skip == 'false' && success()
     env:
@@ -266,22 +265,19 @@ jobs:
           echo "::error::VM did not reach running state in time."
           exit 1
 
-      - name: Windows updates (enable MU + install)
+      # ---------- Windows patching (two passes + verify) ----------
+      - name: Windows updates (pass 1 - enable MU + install)
         if: contains(env.OS_NAME, 'Windows-Server')
+        shell: bash
         run: |
+          PS_SCRIPT='$ErrorActionPreference=''Stop''; Set-ExecutionPolicy Bypass -Scope Process -Force; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; Set-PSRepository -Name ''PSGallery'' -InstallationPolicy Trusted; Install-Module PSWindowsUpdate -Force; Import-Module PSWindowsUpdate; Add-WUServiceManager -MicrosoftUpdate -Confirm:$false | Out-Null; Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose'
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
-            --scripts "Set-ExecutionPolicy Bypass -Scope Process -Force; \
-                       Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; \
-                       Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted; \
-                       Install-Module PSWindowsUpdate -Force; \
-                       Import-Module PSWindowsUpdate; \
-                       Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -IgnoreReboot; \
-                       Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot"
+            --scripts "$PS_SCRIPT"
 
-      - name: Wait for VM after Windows auto-reboot
+      - name: Wait for VM after Windows auto-reboot (pass 1)
         if: contains(env.OS_NAME, 'Windows-Server')
         shell: bash
         run: |
@@ -298,28 +294,58 @@ jobs:
           done
           echo "::warning::VM didn't report running again within the wait window."
 
-      - name: Windows updates (2nd pass) + report remaining
+      - name: Windows updates (pass 2 - install remaining + reboot if needed)
         if: contains(env.OS_NAME, 'Windows-Server')
+        shell: bash
         run: |
+          PS_SCRIPT='Import-Module PSWindowsUpdate; Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose'
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
-            --scripts "Import-Module PSWindowsUpdate; \
-                       \$pending = Get-WindowsUpdate -MicrosoftUpdate -IgnoreReboot; \
-                       if (\$pending) { Write-Output 'Pending updates after first reboot:'; \$pending | Select-Object Title, KB, Size | Format-List } \
-                       else { Write-Output 'No pending updates detected.' }"
+            --scripts "$PS_SCRIPT"
 
+      - name: Wait for VM after Windows auto-reboot (pass 2)
+        if: contains(env.OS_NAME, 'Windows-Server')
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            STATE=$(az vm get-instance-view -g "$RG" -n "$VM_NAME" --query "instanceView.statuses[?starts_with(code, 'PowerState/')].code" -o tsv || true)
+            echo "Current power state: $STATE"
+            if [ "$STATE" = "PowerState/running" ]; then
+              echo "VM back online."
+              exit 0
+            fi
+            echo "Waiting 20s for Windows to come back..."
+            sleep 20
+          done
+          echo "::warning::VM didn't report running again within the wait window."
+
+      - name: Windows updates (final verify)
+        if: contains(env.OS_NAME, 'Windows-Server')
+        shell: bash
+        run: |
+          PS_SCRIPT='Import-Module PSWindowsUpdate; $p = Get-WindowsUpdate -MicrosoftUpdate -IgnoreReboot | Where-Object { -not $_.IsInstalled }; if ($p) { Write-Host "Remaining updates:" ($p | Select-Object Title,KB,Size | Out-String) } else { Write-Host "No pending updates detected." }'
+          az vm run-command invoke \
+            --resource-group "$RG" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts "$PS_SCRIPT"
+
+      # ---------- Linux ----------
       - name: Linux updates (apt)
         if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')
+        shell: bash
         run: |
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunShellScript \
-            --scripts "sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade"
+            --scripts "sudo apt-get update" "sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade"
 
       - name: Enable Defender for Servers
+        shell: bash
         run: az security pricing create --name VirtualMachines --tier Standard
 
       - name: Ensure Log Analytics workspace exists (auto-create)
@@ -361,65 +387,71 @@ jobs:
           echo "WORKSPACE_NAME=$WS_NAME" >> "$GITHUB_ENV"
           echo "WORKSPACE_ID=$WS_ID" >> "$GITHUB_ENV"
 
-      - name: Attach Defender default workspace-setting to Log Analytics
+      - name: Attach Defender default workspace-setting to Log Analytics (optional)
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
           TARGET="$WORKSPACE_ID"
-          if az security workspace-setting list --query "[?name=='default'].id" -o tsv | grep -q .; then
-            echo "Updating existing default workspace-setting -> $TARGET"
-            az security workspace-setting update --name default --target-workspace "$TARGET" >/dev/null
+          echo "Linking Defender workspace-setting to: $TARGET"
+          # 'create' is idempotent for 'default'
+          if ! az security workspace-setting create --name default --target-workspace "$TARGET" >/dev/null 2>&1; then
+            echo "::warning::Failed to attach Defender workspace-setting. Continuing (optional step)."
           else
-            echo "Creating default workspace-setting -> $TARGET"
-            az security workspace-setting create --name default --target-workspace "$TARGET" >/dev/null
+            echo "Defender workspace-setting configured."
           fi
-          echo "Defender workspace-setting configured."
 
-      - name: Enable Microsoft Sentinel on the workspace (idempotent)
+      - name: Enable Microsoft Sentinel on the workspace (idempotent with retry)
         shell: bash
         run: |
           set -euo pipefail
           RG_NAME="$RG"
-          LOCATION="${REGION:-$(az group show -n "$RG_NAME" --query location -o tsv)}"
           WS="$WORKSPACE_NAME"
+          LOCATION="${REGION:-$(az group show -n "$RG_NAME" --query location -o tsv)}"
 
           echo "Target workspace: $WS in $RG_NAME ($LOCATION)"
 
-          # Prefer the modern onboarding API (sentinel extension)
           az extension add --name sentinel >/dev/null 2>&1 || true
-          if az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
-             --query properties.onboardingState -o tsv >/dev/null 2>&1; then
 
-            state=$(az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
-                      --query properties.onboardingState -o tsv)
-            if [ "$state" != "Onboarded" ]; then
-              echo "Enabling Sentinel via onboarding-state..."
-              az sentinel onboarding-state enable -g "$RG_NAME" --workspace-name "$WS" >/dev/null
+          for i in {1..3}; do
+            if az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
+               --query properties.onboardingState -o tsv >/dev/null 2>&1; then
+              state=$(az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
+                        --query properties.onboardingState -o tsv)
+              if [ "$state" != "Onboarded" ]; then
+                echo "Enabling Sentinel (attempt $i)..."
+                az sentinel onboarding-state enable -g "$RG_NAME" --workspace-name "$WS" >/dev/null || true
+              else
+                echo "Sentinel already Onboarded."
+                break
+              fi
             else
-              echo "Sentinel already Onboarded."
+              echo "Sentinel onboarding-state not available (attempt $i)."
             fi
+            sleep 10
+          done
 
-          else
-            # Fallback to the classic solution resource
-            echo "Sentinel extension not usable here; falling back to classic solution."
+          if ! az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
+               --query properties.onboardingState -o tsv 2>/dev/null | grep -q Onboarded; then
+            echo "Falling back to classic SecurityInsights solution..."
             az extension add --name log-analytics-solution >/dev/null 2>&1 || true
-
             if ! az monitor log-analytics solution show \
                   --resource-group "$RG_NAME" \
                   --name "SecurityInsights($WS)" >/dev/null 2>&1; then
-              echo "Creating classic SecurityInsights solution..."
               az monitor log-analytics solution create \
                 --resource-group "$RG_NAME" \
                 --workspace "$WS" \
                 --solution-type SecurityInsights \
                 --plan publisher=Microsoft product=OMSGallery/SecurityInsights \
                 --location "$LOCATION" >/dev/null
+              echo "Classic SecurityInsights solution created."
             else
               echo "SecurityInsights solution already present."
             fi
           fi
 
       - name: Tag VM as secured
+        shell: bash
         run: |
           az resource tag \
             --ids "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.Compute/virtualMachines/$VM_NAME" \

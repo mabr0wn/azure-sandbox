@@ -97,19 +97,16 @@ jobs:
           set -euo pipefail
           f="${{ steps.pick.outputs.param_file }}"
           echo "Param file from outputs: [$f]"
-
           if [ ! -f "$f" ]; then
             echo "::error::Expected a .bicepparam file but got something else."
             p="$(dirname "$f" || true)"; ls -la -- "$p" || true
             exit 1
           fi
-
           VM_NAME=$(grep -Po "^param\s+vmName\s*=\s*'\K[^']+" -- "$f" || true)
           if [ -z "$VM_NAME" ]; then
             echo "::error::Could not parse vmName from $f"
             exit 1
           fi
-
           {
             echo "vm_name<<__EOF__"
             echo "$VM_NAME"
@@ -269,24 +266,20 @@ jobs:
           echo "::error::VM did not reach running state in time."
           exit 1
 
-      # ---------- Windows Updates: two-pass with Microsoft Update ----------
-      - name: Windows updates (enable MU + 1st install pass)
+      - name: Windows updates (enable MU + install)
         if: contains(env.OS_NAME, 'Windows-Server')
         run: |
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
-            --scripts `
-              "$ErrorActionPreference='Stop';" `
-              "Set-ExecutionPolicy Bypass -Scope Process -Force;" `
-              "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" `
-              "Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force;" `
-              "Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted;" `
-              "Install-Module PSWindowsUpdate -Force;" `
-              "Import-Module PSWindowsUpdate;" `
-              "Add-WUServiceManager -MicrosoftUpdate -Confirm:`$false | Out-Null;" `
-              "Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose"
+            --scripts "Set-ExecutionPolicy Bypass -Scope Process -Force; \
+                       Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; \
+                       Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted; \
+                       Install-Module PSWindowsUpdate -Force; \
+                       Import-Module PSWindowsUpdate; \
+                       Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -IgnoreReboot; \
+                       Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot"
 
       - name: Wait for VM after Windows auto-reboot
         if: contains(env.OS_NAME, 'Windows-Server')
@@ -312,13 +305,11 @@ jobs:
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
-            --scripts `
-              "$ErrorActionPreference='Stop'; Import-Module PSWindowsUpdate;" `
-              "Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose;" `
-              "$p = Get-WindowsUpdate -MicrosoftUpdate -IgnoreReboot | Where-Object { -not $_.IsInstalled };" `
-              "Write-Host 'Remaining updates:' ($p | Select-Object Title,KB,DownloadStatus,IsInstalled | Out-String)"
+            --scripts "Import-Module PSWindowsUpdate; \
+                       \$pending = Get-WindowsUpdate -MicrosoftUpdate -IgnoreReboot; \
+                       if (\$pending) { Write-Output 'Pending updates after first reboot:'; \$pending | Select-Object Title, KB, Size | Format-List } \
+                       else { Write-Output 'No pending updates detected.' }"
 
-      # ---------- Linux ----------
       - name: Linux updates (apt)
         if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')
         run: |
@@ -326,8 +317,7 @@ jobs:
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunShellScript \
-            --scripts "sudo apt-get update" \
-                     "sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade"
+            --scripts "sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade"
 
       - name: Enable Defender for Servers
         run: az security pricing create --name VirtualMachines --tier Standard
@@ -395,6 +385,7 @@ jobs:
 
           echo "Target workspace: $WS in $RG_NAME ($LOCATION)"
 
+          # Prefer the modern onboarding API (sentinel extension)
           az extension add --name sentinel >/dev/null 2>&1 || true
           if az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
              --query properties.onboardingState -o tsv >/dev/null 2>&1; then
@@ -409,6 +400,7 @@ jobs:
             fi
 
           else
+            # Fallback to the classic solution resource
             echo "Sentinel extension not usable here; falling back to classic solution."
             az extension add --name log-analytics-solution >/dev/null 2>&1 || true
 

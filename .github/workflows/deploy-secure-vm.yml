@@ -333,6 +333,18 @@ jobs:
             --command-id RunPowerShellScript \
             --scripts "$PS_SCRIPT"
 
+      - name: Windows Update UI reconcile (optional)
+        if: contains(env.OS_NAME, 'Windows-Server')
+        continue-on-error: true
+        shell: bash
+        run: |
+          PS_SCRIPT='Try { UsoClient RefreshSettings; Start-Sleep -Seconds 5; UsoClient StartScan; Start-Sleep -Seconds 10; UsoClient StartInstall; wuauclt /detectnow; wuauclt /reportnow } Catch { Write-Host "USOClient not available; ignoring." }'
+          az vm run-command invoke \
+            --resource-group "$RG" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts "$PS_SCRIPT"
+            
       # ---------- Linux ----------
       - name: Linux updates (apt)
         if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')

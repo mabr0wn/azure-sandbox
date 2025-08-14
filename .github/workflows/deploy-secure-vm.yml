@@ -394,14 +394,14 @@ jobs:
           set -euo pipefail
           TARGET="$WORKSPACE_ID"
           echo "Linking Defender workspace-setting to: $TARGET"
-          # 'create' is idempotent for 'default'
           if ! az security workspace-setting create --name default --target-workspace "$TARGET" >/dev/null 2>&1; then
             echo "::warning::Failed to attach Defender workspace-setting. Continuing (optional step)."
           else
             echo "Defender workspace-setting configured."
           fi
 
-      - name: Enable Microsoft Sentinel on the workspace (idempotent with retry)
+      - name: Enable Microsoft Sentinel on the workspace (idempotent with retry)  # optional
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -431,23 +431,17 @@ jobs:
             sleep 10
           done
 
+          # Fallback to classic solution (best-effort)
           if ! az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
                --query properties.onboardingState -o tsv 2>/dev/null | grep -q Onboarded; then
             echo "Falling back to classic SecurityInsights solution..."
             az extension add --name log-analytics-solution >/dev/null 2>&1 || true
-            if ! az monitor log-analytics solution show \
-                  --resource-group "$RG_NAME" \
-                  --name "SecurityInsights($WS)" >/dev/null 2>&1; then
-              az monitor log-analytics solution create \
-                --resource-group "$RG_NAME" \
-                --workspace "$WS" \
-                --solution-type SecurityInsights \
-                --plan publisher=Microsoft product=OMSGallery/SecurityInsights \
-                --location "$LOCATION" >/dev/null
-              echo "Classic SecurityInsights solution created."
-            else
-              echo "SecurityInsights solution already present."
-            fi
+            az monitor log-analytics solution create \
+              --resource-group "$RG_NAME" \
+              --workspace "$WS" \
+              --solution-type SecurityInsights \
+              --plan publisher=Microsoft product=OMSGallery/SecurityInsights \
+              --location "$LOCATION" >/dev/null || echo "::warning::Classic solution creation failed; continuing."
           fi
 
       - name: Tag VM as secured

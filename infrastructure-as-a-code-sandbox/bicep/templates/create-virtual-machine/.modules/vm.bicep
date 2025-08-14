@@ -38,21 +38,9 @@ var nsgRef = resourceId(vNetResourceGroup, 'Microsoft.Network/networkSecurityGro
 
 // (images map)
 var operatingSystemValues = {
-  Server2016: {
-    PublisherValue: 'MicrosoftWindowsServer'
-    OfferValue: 'WindowsServer'
-    SkuValue: '2016-Datacenter'
-  }
-  Server2019: {
-    PublisherValue: 'MicrosoftWindowsServer'
-    OfferValue: 'WindowsServer'
-    SkuValue: '2019-Datacenter'
-  }
-  Server2022: {
-    PublisherValue: 'MicrosoftWindowsServer'
-    OfferValue: 'WindowsServer'
-    SkuValue: '2022-Datacenter'
-  }
+  Server2016: { PublisherValue: 'MicrosoftWindowsServer', OfferValue: 'WindowsServer', SkuValue: '2016-Datacenter' }
+  Server2019: { PublisherValue: 'MicrosoftWindowsServer', OfferValue: 'WindowsServer', SkuValue: '2019-Datacenter' }
+  Server2022: { PublisherValue: 'MicrosoftWindowsServer', OfferValue: 'WindowsServer', SkuValue: '2022-Datacenter' }
   Ubuntu1804: { PublisherValue: 'Canonical', OfferValue: 'UbuntuServer', SkuValue: '18.04-LTS' }
   Ubuntu2004: { PublisherValue: 'Canonical', OfferValue: 'UbuntuServer', SkuValue: '20.04-LTS' }
   Ubuntu2204: { PublisherValue: 'Canonical', OfferValue: 'UbuntuServer', SkuValue: '22.04-LTS' }
@@ -93,12 +81,13 @@ resource nic 'Microsoft.Network/networkInterfaces@2021-02-01' = [for i in range(
   tags: tags
 }]
 
+// ---------- Existing KV + write secrets ----------
 resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
   name: kvname
 }
 
 resource vmPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
-  parent:keyVault
+  parent: keyVault
   name: '${keyVault.name}-${vmSecretName}'
   properties: {
     value: vmPassword
@@ -112,6 +101,16 @@ resource domainJoinUserPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07
     value: domainJoinUserPassword
   }
 }
+
+// ---------- Existing storage (for Linux script) ----------
+resource existingStorageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' existing = {
+  name: storageAccountName
+  scope: resourceGroup(resourceGroupName)
+}
+
+// Use the actual blob endpoint to avoid hardcoded env URLs (fixes linter warning)
+var blobEndpoint = existingStorageAccount.properties.primaryEndpoints.blob
+
 // ---------- VM ----------
 resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i in range(0, virtualMachineCount): {
   name: '${vmName}${virtualMachineCount > 1 ? (i + 1) : ''}'
@@ -149,9 +148,9 @@ resource virtualmachine 'Microsoft.Compute/virtualMachines@2021-03-01' = [for i 
           ]
         }
       } : null)
-windowsConfiguration: (operatingSystemValues[OS].PublisherValue == 'MicrosoftWindowsServer' ? {
-  provisionVMAgent: true
-} : null)
+      windowsConfiguration: (operatingSystemValues[OS].PublisherValue == 'MicrosoftWindowsServer' ? {
+        provisionVMAgent: true
+      } : null)
     }
     networkProfile: {
       networkInterfaces: [
@@ -205,7 +204,8 @@ resource linuxDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-0
       skipDos2Unix: false
       timestamp: 123456789
       fileUris: [
-        'https://<your-storage-account-name>.blob.core.windows.net/scripts/join-linux-domain.sh'
+        // Trailing slash is included in blobEndpoint: e.g., https://acct.blob.core.windows.net/
+        '${blobEndpoint}scripts/join-linux-domain.sh'
       ]
     }
     protectedSettings: {
@@ -220,12 +220,7 @@ resource linuxDomainJoin 'Microsoft.Compute/virtualMachines/extensions@2021-03-0
   dependsOn: [ virtualmachine ]
 }]
 
-// ---------- Existing storage (if needed by Linux script) ----------
-resource existingStorageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' existing = {
-  name: storageAccountName
-  scope: resourceGroup(resourceGroupName)
-}
-
+// ---------- Disable Windows Firewall after provisioning ----------
 resource disableFirewallExt 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' = {
   name: '${vmName}/disableFirewall'
   location: location
@@ -243,5 +238,3 @@ resource disableFirewallExt 'Microsoft.Compute/virtualMachines/extensions@2023-0
     }
   }
 }
-
-

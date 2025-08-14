@@ -43,30 +43,38 @@ jobs:
           set -euo pipefail
           PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine"
 
-          # Prefer timestamped "transient" param files: main.2025-08-13T1645Z.bicepparam, main.20250813-1645.bicepparam, etc.
+          write_output () {
+            local k="$1"; local v="$2"
+            {
+              echo "$k<<__EOF__"
+              echo "$v"
+              echo "__EOF__"
+            } >> "$GITHUB_OUTPUT"
+          }
+
           shopt -s nullglob
           mapfile -t transient < <(ls -t "$PARAM_DIR"/main.*[0-9][0-9][0-9][0-9]*.bicepparam 2>/dev/null || true)
 
           if (( ${#transient[@]} > 0 )); then
             latest="${transient[0]}"
             echo "Selected timestamped param file: $latest"
-            echo "transient=true" >> "$GITHUB_OUTPUT"
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-            echo "param_file=$latest" >> "$GITHUB_OUTPUT"
+            write_output "transient" "true"
+            write_output "skip" "false"
+            write_output "param_file" "$latest"
             exit 0
           fi
 
           if [ -f "$PARAM_DIR/main.bicepparam" ]; then
             latest="$PARAM_DIR/main.bicepparam"
             echo "Selected baseline param file: $latest"
-            echo "transient=false" >> "$GITHUB_OUTPUT"
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-            echo "param_file=$latest" >> "$GITHUB_OUTPUT"
+            write_output "transient" "false"
+            write_output "skip" "false"
+            write_output "param_file" "$latest"
             exit 0
           fi
 
           echo "No .bicepparam files found. Nothing to deploy."
-          echo "skip=true" >> "$GITHUB_OUTPUT"
+          write_output "skip" "true"
 
       - name: Parse vmName from param file
         id: parse
@@ -75,12 +83,29 @@ jobs:
         run: |
           set -euo pipefail
           f="${{ steps.pick.outputs.param_file }}"
-          VM_NAME=$(grep -Po "^param\s+vmName\s*=\s*'\K[^']+" "$f" || true)
-          if [ -z "$VM_NAME" ]; then
-            echo "Could not parse vmName from $f" >&2
+          echo "Param file from outputs: [$f]"
+
+          if [ ! -f "$f" ]; then
+            echo "::error::Expected a .bicepparam file but got something else."
+            echo "ls -la of candidate:"
+            ls -la -- "$f" || true
+            echo "ls -la of parent dir:"
+            p="$(dirname "$f" || true)"; ls -la -- "$p" || true
             exit 1
           fi
-          echo "vm_name=$VM_NAME" >> "$GITHUB_OUTPUT"
+
+          VM_NAME=$(grep -Po "^param\s+vmName\s*=\s*'\K[^']+" -- "$f" || true)
+          if [ -z "$VM_NAME" ]; then
+            echo "::error::Could not parse vmName from $f"
+            exit 1
+          fi
+
+          {
+            echo "vm_name<<__EOF__"
+            echo "$VM_NAME"
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+
           echo "vmName parsed: $VM_NAME"
 
       - name: Parse OS from param file
@@ -90,12 +115,16 @@ jobs:
         run: |
           set -euo pipefail
           f="${{ steps.pick.outputs.param_file }}"
-          OS_VAL=$(grep -Po "^param\s+OS\s*=\s*'\K[^']+" "$f" || true)
+          OS_VAL=$(grep -Po "^param\s+OS\s*=\s*'\K[^']+" -- "$f" || true)
           if [ -z "$OS_VAL" ]; then
-            echo "Could not parse OS from $f" >&2
+            echo "::error::Could not parse OS from $f"
             exit 1
           fi
-          echo "os=$OS_VAL" >> "$GITHUB_OUTPUT"
+          {
+            echo "os<<__EOF__"
+            echo "$OS_VAL"
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
           echo "OS parsed: $OS_VAL"
 
       - name: Normalize OS name for secure step
@@ -109,7 +138,11 @@ jobs:
           if [[ "$raw" =~ ^Server(2022|2019|2016)$ ]]; then norm="Windows-Server"; fi
           if [[ "$raw" =~ ^Ubuntu(22|20) ]]; then norm="Ubuntu"; fi
           if [[ "$raw" =~ ^Debian(12|11) ]]; then norm="Debian"; fi
-          echo "os_norm=$norm" >> "$GITHUB_OUTPUT"
+          {
+            echo "os_norm<<__EOF__"
+            echo "$norm"
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
           echo "Normalized OS: $norm"
 
       - name: Show picked values
@@ -119,6 +152,11 @@ jobs:
           echo "VM_NAME:  ${{ steps.parse.outputs.vm_name }}"
           echo "OS_RAW:   ${{ steps.parse_os.outputs.os }}"
           echo "OS_NORM:  ${{ steps.os_norm.outputs.os_norm }}"
+
+      - name: Assert param file exists
+        if: steps.pick.outputs.skip == 'false'
+        run: |
+          test -f "${{ steps.pick.outputs.param_file }}" || { echo "::error::Param file missing"; exit 1; }
 
       - name: Deploy Bicep (resource group scope)
         if: steps.pick.outputs.skip == 'false'
@@ -174,7 +212,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # --- Ensure a quarantine NSG exists and get its ID (use secret if valid, else create) ---
       - name: Ensure Quarantine NSG exists (create if missing)
         shell: bash
         run: |
@@ -182,14 +219,13 @@ jobs:
           RG_NAME="$RG"
           LOCATION="$REGION"
 
-          # If an NSG ID was provided, verify it exists
           if [ -n "${QUARANTINE_NSG_ID:-}" ]; then
             if az resource show --ids "$QUARANTINE_NSG_ID" >/dev/null 2>&1; then
               echo "Using provided QUARANTINE_NSG_ID."
               echo "QUARANTINE_NSG_ID=$QUARANTINE_NSG_ID" >> "$GITHUB_ENV"
               exit 0
             else
-              echo "Provided QUARANTINE_NSG_ID not found; creating a default quarantine NSG."
+              echo "Provided QUARANTINE_NSG_ID not found; creating default quarantine NSG."
             fi
           fi
 
@@ -197,7 +233,6 @@ jobs:
           if ! az network nsg show -g "$RG_NAME" -n "$NSG_NAME" >/dev/null 2>&1; then
             echo "Creating quarantine NSG '$NSG_NAME' in $RG_NAME ($LOCATION)..."
             az network nsg create -g "$RG_NAME" -n "$NSG_NAME" -l "$LOCATION" >/dev/null
-            # Deny-all inbound/outbound to isolate
             az network nsg rule create -g "$RG_NAME" --nsg-name "$NSG_NAME" \
               -n DenyAllInbound --priority 100 --access Deny --direction Inbound \
               --protocol '*' --source-address-prefixes '*' --source-port-ranges '*' \

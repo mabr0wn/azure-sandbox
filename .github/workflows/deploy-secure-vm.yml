@@ -44,7 +44,7 @@ jobs:
           PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine"
 
           write_output () {
-            local k="$1"; local v="${2:-}"
+            local k="$1"; local v="$2"
             {
               echo "$k<<__EOF__"
               echo "$v"
@@ -52,36 +52,38 @@ jobs:
             } >> "$GITHUB_OUTPUT"
           }
 
-          if ! compgen -G "$PARAM_DIR/*.bicepparam" >/dev/null; then
+          if ! compgen -G "$PARAM_DIR/*.bicepparam" > /dev/null; then
             echo "No .bicepparam files found. Nothing to deploy."
-            write_output skip true
+            write_output "skip" "true"
             exit 0
           fi
 
-          # Prefer timestamped param like: main.*.bicepparam (NOT main.bicepparam)
+          TS_PATTERN="$PARAM_DIR"/main.*.bicepparam
           latest=""
-          mapfile -t ts_list < <(ls -t -- "$PARAM_DIR"/main.*.bicepparam 2>/dev/null | grep -vE '/main\.bicepparam$' || true)
-          if (( ${#ts_list[@]} > 0 )); then
-            latest="${ts_list[0]}"
-            echo "Selected timestamped param: $latest"
-            write_output transient true
-          fi
 
-          # Fallback to baseline
-          if [ -z "$latest" ] && [ -f "$PARAM_DIR/main.bicepparam" ]; then
-            latest="$PARAM_DIR/main.bicepparam"
-            echo "Selected baseline param: $latest"
-            write_output transient false
+          if compgen -G "$TS_PATTERN" > /dev/null; then
+            mapfile -t candidates < <(ls -t -- $TS_PATTERN | grep -v '/main\.bicepparam$' || true)
+            if (( ${#candidates[@]} > 0 )); then
+              latest="${candidates[0]}"
+              echo "Selected timestamped param file: $latest"
+              write_output "transient" "true"
+            fi
           fi
 
           if [ -z "$latest" ]; then
-            echo "Found .bicepparam files, but none matched expected names."
-            write_output skip true
-            exit 0
+            if [ -f "$PARAM_DIR/main.bicepparam" ]; then
+              latest="$PARAM_DIR/main.bicepparam"
+              echo "Selected baseline param file: $latest"
+              write_output "transient" "false"
+            else
+              echo "Found .bicepparam files, but none matched expected names."
+              write_output "skip" "true"
+              exit 0
+            fi
           fi
 
-          write_output skip false
-          write_output param_file "$latest"
+          write_output "skip" "false"
+          write_output "param_file" "$latest"
           echo "param_file resolved to: [$latest]"
 
       - name: Parse vmName from param file
@@ -91,15 +93,20 @@ jobs:
         run: |
           set -euo pipefail
           f="${{ steps.pick.outputs.param_file }}"
+          echo "Param file from outputs: [$f]"
+
           if [ ! -f "$f" ]; then
-            echo "::error::Expected a .bicepparam file path, got: $f"
+            echo "::error::Expected a .bicepparam file but got something else."
+            p="$(dirname "$f" || true)"; ls -la -- "$p" || true
             exit 1
           fi
+
           VM_NAME=$(grep -Po "^param\s+vmName\s*=\s*'\K[^']+" -- "$f" || true)
           if [ -z "$VM_NAME" ]; then
             echo "::error::Could not parse vmName from $f"
             exit 1
           fi
+
           {
             echo "vm_name<<__EOF__"
             echo "$VM_NAME"
@@ -134,9 +141,9 @@ jobs:
           set -euo pipefail
           raw="${{ steps.parse_os.outputs.os }}"
           norm="$raw"
-          [[ "$raw" =~ ^Server(2022|2019|2016)$ ]] && norm="Windows-Server"
-          [[ "$raw" =~ ^Ubuntu(22|20) ]] && norm="Ubuntu"
-          [[ "$raw" =~ ^Debian(12|11) ]] && norm="Debian"
+          if [[ "$raw" =~ ^Server(2022|2019|2016)$ ]]; then norm="Windows-Server"; fi
+          if [[ "$raw" =~ ^Ubuntu(22|20) ]]; then norm="Ubuntu"; fi
+          if [[ "$raw" =~ ^Debian(12|11) ]]; then norm="Debian"; fi
           {
             echo "os_norm<<__EOF__"
             echo "$norm"
@@ -155,7 +162,7 @@ jobs:
       - name: Assert param file exists
         if: steps.pick.outputs.skip == 'false'
         run: |
-          test -f "${{ steps.pick.outputs.param_file }}"
+          test -f "${{ steps.pick.outputs.param_file }}" || { echo "::error::Param file missing"; exit 1; }
 
       - name: Deploy Bicep (resource group scope)
         if: steps.pick.outputs.skip == 'false'
@@ -176,7 +183,7 @@ jobs:
           set -euo pipefail
           PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine"
           shopt -s nullglob
-          files=( "$PARAM_DIR"/main.*[0-9]*.bicepparam )
+          files=( "$PARAM_DIR"/main.*[0-9][0-9][0-9][0-9]*.bicepparam )
           if (( ${#files[@]} > 0 )); then
             git config user.name  "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -198,7 +205,6 @@ jobs:
       SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION }}
       RG: ${{ secrets.AZURE_RG }}
       REGION: ${{ secrets.AZURE_REGION }}
-      WORKSPACE: ${{ secrets.AZURE_WORKSPACE }}
       QUARANTINE_NSG_ID: ${{ secrets.QUARANTINE_NSG_ID }}
 
     steps:
@@ -226,7 +232,7 @@ jobs:
 
           NSG_NAME="quarantine-nsg"
           if ! az network nsg show -g "$RG_NAME" -n "$NSG_NAME" >/dev/null 2>&1; then
-            echo "Creating quarantine NSG '$NSG_NAME'..."
+            echo "Creating quarantine NSG '$NSG_NAME' in $RG_NAME ($LOCATION)..."
             az network nsg create -g "$RG_NAME" -n "$NSG_NAME" -l "$LOCATION" >/dev/null
             az network nsg rule create -g "$RG_NAME" --nsg-name "$NSG_NAME" \
               -n DenyAllInbound --priority 100 --access Deny --direction Inbound \
@@ -242,7 +248,6 @@ jobs:
 
           NSG_ID=$(az network nsg show -g "$RG_NAME" -n "$NSG_NAME" --query id -o tsv)
           echo "QUARANTINE_NSG_ID=$NSG_ID" >> "$GITHUB_ENV"
-          echo "Resolved QUARANTINE_NSG_ID: $NSG_ID"
 
       - name: Wait for VM to be running
         shell: bash
@@ -255,41 +260,26 @@ jobs:
               echo "VM is running."
               exit 0
             fi
-            echo "Waiting 20s..."
+            echo "Waiting 20s for VM to be running..."
             sleep 20
           done
           echo "::error::VM did not reach running state in time."
           exit 1
 
-      # ---------- WINDOWS UPDATES: Two-pass with reboot ----------
-      - name: Windows updates (install + reboot if needed)
+      - name: Windows updates (Security & Critical)
         if: contains(env.OS_NAME, 'Windows-Server')
         run: |
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
-            --scripts @- <<'PS1'
-          $ErrorActionPreference = 'Stop'
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-
-          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-          try { Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted } catch {}
-          if (-not (Get-Module -ListAvailable -Name PSWindowsUpdate)) { Install-Module PSWindowsUpdate -Force }
-          Import-Module PSWindowsUpdate
-          Add-WUServiceManager -MicrosoftUpdate -ErrorAction SilentlyContinue | Out-Null
-
-          Write-Host "== First pass: installing available updates =="
-          Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -Install -IgnoreReboot -Verbose | Out-String | Write-Host
-
-          $reboot = (Get-WURebootStatus).RebootRequired
-          Write-Host "RebootRequired=$reboot"
-          if ($reboot) {
-            Write-Host "Restarting due to updates..."
-            Restart-Computer -Force
-          }
-          PS1
+            --scripts "Set-ExecutionPolicy Bypass -Scope Process -Force" \
+                     "Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force" \
+                     "Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted" \
+                     "Install-Module PSWindowsUpdate -Force" \
+                     "Import-Module PSWindowsUpdate" \
+                     "Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -IgnoreReboot" \
+                     "Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot"
 
       - name: Wait for VM after Windows auto-reboot
         if: contains(env.OS_NAME, 'Windows-Server')
@@ -303,40 +293,11 @@ jobs:
               echo "VM back online."
               exit 0
             fi
-            echo "Waiting 20s..."
+            echo "Waiting 20s for Windows to come back..."
             sleep 20
           done
-          echo "::error::VM did not reach running state in time."
-          exit 1
+          echo "::warning::VM didn't report running again within the wait window."
 
-      - name: Windows updates (second pass + verify)
-        if: contains(env.OS_NAME, 'Windows-Server')
-        run: |
-          az vm run-command invoke \
-            --resource-group "$RG" \
-            --name "$VM_NAME" \
-            --command-id RunPowerShellScript \
-            --scripts @- <<'PS1'
-          $ErrorActionPreference = 'Stop'
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-          Import-Module PSWindowsUpdate
-          Add-WUServiceManager -MicrosoftUpdate -ErrorAction SilentlyContinue | Out-Null
-
-          Write-Host "== Second pass =="
-          Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -Install -IgnoreReboot -Verbose | Out-String | Write-Host
-
-          $pending = (Get-WindowsUpdate -MicrosoftUpdate -ListOnly -IgnoreReboot | Measure-Object).Count
-          $reboot  = (Get-WURebootStatus).RebootRequired
-          Write-Host "PendingCount=$pending"
-          Write-Host "RebootRequired=$reboot"
-          if ($reboot) {
-            Write-Host "Final restart due to updates..."
-            Restart-Computer -Force
-          }
-          PS1
-
-      # ---------- LINUX UPDATES ----------
       - name: Linux updates (apt)
         if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')
         run: |
@@ -347,54 +308,91 @@ jobs:
             --scripts "sudo apt-get update" \
                      "sudo DEBIAN_FRONTEND=noninteractive apt-get -y upgrade"
 
-      # ---------- Defender pricing ----------
       - name: Enable Defender for Servers
         run: az security pricing create --name VirtualMachines --tier Standard
 
-      # ---------- Attach Security Center to Log Analytics (optional, robust) ----------
-      - name: Attach to Sentinel (Log Analytics) (name must be 'default')
-        shell: bash
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          if [ -z "${WORKSPACE:-}" ]; then
-            echo "No AZURE_WORKSPACE provided; skipping workspace-setting."
-            exit 0
-          fi
-          # Validate workspace existence and get its ID
-          WS_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$WORKSPACE" --query id -o tsv 2>/dev/null || true)
-          if [ -z "$WS_ID" ]; then
-            echo "::warning::Workspace '$WORKSPACE' not found in RG '$RG'. Skipping workspace-setting."
-            exit 0
-          fi
-          echo "Creating 'default' workspace-setting -> $WS_ID"
-          az security workspace-setting create --name default --target-workspace "$WS_ID"
+      # -------- Sentinel / Log Analytics: auto-create and attach --------
 
-      # ---------- (Optional) Ensure Sentinel solution is enabled (best-effort) ----------
-      - name: Ensure Microsoft Sentinel solution enabled (optional)
+      - name: Ensure Log Analytics workspace exists (auto-create)
+        id: la_ws
         shell: bash
-        continue-on-error: true
         run: |
           set -euo pipefail
-          if [ -z "${WORKSPACE:-}" ]; then
-            echo "No AZURE_WORKSPACE provided; skipping Sentinel solution."
-            exit 0
+          RG_NAME="$RG"
+          LOCATION="${REGION:-$(az group show -n "$RG_NAME" --query location -o tsv)}"
+
+          # If user provided AZURE_WORKSPACE as a secret, use it; else default to "<rg>-workspace"
+          WS_NAME="${{ secrets.AZURE_WORKSPACE || '' }}"
+          if [ -z "$WS_NAME" ]; then
+            WS_NAME="${RG_NAME}-workspace"
           fi
-          WS_ID=$(az monitor log-analytics workspace show -g "$RG" -n "$WORKSPACE" --query id -o tsv 2>/dev/null || true)
-          if [ -z "$WS_ID" ]; then
-            echo "Workspace not found; skipping Sentinel solution."
-            exit 0
+
+          echo "Using workspace name: $WS_NAME (location: $LOCATION)"
+
+          if ! az monitor log-analytics workspace show -g "$RG_NAME" -n "$WS_NAME" >/dev/null 2>&1; then
+            echo "Creating Log Analytics workspace '$WS_NAME'..."
+            az monitor log-analytics workspace create \
+              --resource-group "$RG_NAME" \
+              --workspace-name "$WS_NAME" \
+              --location "$LOCATION" \
+              --sku PerGB2018 >/dev/null
+          else
+            echo "Workspace '$WS_NAME' already exists."
           fi
-          # Install extension if needed
-          az config set extension.use_dynamic_install=yes_without_prompt >/dev/null 2>&1 || true
-          # Enable Sentinel solution (SecurityInsights). Name format typically SecurityInsights(<workspaceName>)
-          LOC="${REGION:-$(az group show -n "$RG" --query location -o tsv)}"
-          az monitor log-analytics solution create \
-            --resource-group "$RG" \
-            --location "$LOC" \
-            --solution-type SecurityInsights \
-            --workspace "$WS_ID" \
-            --tags provisioned-by=github-actions || true
+
+          WS_ID=$(az monitor log-analytics workspace show -g "$RG_NAME" -n "$WS_NAME" --query id -o tsv)
+          {
+            echo "WS_NAME<<__EOF__"
+            echo "$WS_NAME"
+            echo "__EOF__"
+            echo "WS_ID<<__EOF__"
+            echo "$WS_ID"
+            echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "WORKSPACE_NAME=$WS_NAME" >> "$GITHUB_ENV"
+          echo "WORKSPACE_ID=$WS_ID" >> "$GITHUB_ENV"
+
+      - name: Attach Defender default workspace-setting to Log Analytics
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="$WORKSPACE_ID"
+          # 'default' is the only allowed name
+          if az security workspace-setting list --query "[?name=='default'].id" -o tsv | grep -q .; then
+            echo "Updating existing default workspace-setting -> $TARGET"
+            az security workspace-setting update --name default --target-workspace "$TARGET" >/dev/null
+          else
+            echo "Creating default workspace-setting -> $TARGET"
+            az security workspace-setting create --name default --target-workspace "$TARGET" >/dev/null
+          fi
+          echo "Defender workspace-setting configured."
+
+      - name: Enable Microsoft Sentinel (SecurityInsights solution)
+        shell: bash
+        run: |
+          set -euo pipefail
+          RG_NAME="$RG"
+          LOCATION="${REGION:-$(az group show -n "$RG_NAME" --query location -o tsv)}"
+
+          # Ensure the extension that provides the solution command is available
+          az extension add --name log-analytics-solution >/dev/null 2>&1 || true
+
+          # Create the Sentinel solution (idempotent)
+          if ! az monitor log-analytics solution show \
+                --resource-group "$RG_NAME" \
+                --name "SecurityInsights($WORKSPACE_NAME)" >/dev/null 2>&1; then
+            echo "Enabling Microsoft Sentinel on workspace '$WORKSPACE_NAME'..."
+            az monitor log-analytics solution create \
+              --resource-group "$RG_NAME" \
+              --workspace "$WORKSPACE_NAME" \
+              --solution-type SecurityInsights \
+              --plan publisher Microsoft \
+              --plan product OMSGallery/SecurityInsights \
+              --location "$LOCATION" >/dev/null
+          else
+            echo "Microsoft Sentinel already enabled for '$WORKSPACE_NAME'."
+          fi
 
       - name: Tag VM as secured
         run: |

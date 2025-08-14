@@ -58,11 +58,14 @@ jobs:
             exit 0
           fi
 
-          TS_PATTERN="$PARAM_DIR"/main.*.bicepparam
+          # Match ANY timestamped variant: main-..., main.2025..., main_something...
+          TS_PATTERN="$PARAM_DIR"/main*.bicepparam
           latest=""
 
           if compgen -G "$TS_PATTERN" > /dev/null; then
-            mapfile -t candidates < <(ls -t -- $TS_PATTERN | grep -v '/main\.bicepparam$' || true)
+            echo "Timestamped candidates (newest first):"
+            mapfile -t candidates < <(ls -t -- $TS_PATTERN 2>/dev/null | grep -v '/main\.bicepparam$' || true)
+            printf '  %s\n' "${candidates[@]:-<none>}"
             if (( ${#candidates[@]} > 0 )); then
               latest="${candidates[0]}"
               echo "Selected timestamped param file: $latest"
@@ -183,7 +186,7 @@ jobs:
           set -euo pipefail
           PARAM_DIR="infrastructure-as-a-code-sandbox/bicep/templates/create-virtual-machine"
           shopt -s nullglob
-          files=( "$PARAM_DIR"/main.*[0-9][0-9][0-9][0-9]*.bicepparam )
+          files=( "$PARAM_DIR"/main.*[0-9][0-9][0-9][0-9]*.bicepparam "$PARAM_DIR"/main-*.bicepparam "$PARAM_DIR"/main_*.bicepparam )
           if (( ${#files[@]} > 0 )); then
             git config user.name  "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -266,20 +269,24 @@ jobs:
           echo "::error::VM did not reach running state in time."
           exit 1
 
-      - name: Windows updates (Security & Critical)
+      # ---------- Windows Updates: two-pass with Microsoft Update ----------
+      - name: Windows updates (enable MU + 1st install pass)
         if: contains(env.OS_NAME, 'Windows-Server')
         run: |
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
-            --scripts "Set-ExecutionPolicy Bypass -Scope Process -Force" \
-                     "Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force" \
-                     "Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted" \
-                     "Install-Module PSWindowsUpdate -Force" \
-                     "Import-Module PSWindowsUpdate" \
-                     "Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -IgnoreReboot" \
-                     "Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot"
+            --scripts `
+              "$ErrorActionPreference='Stop';" `
+              "Set-ExecutionPolicy Bypass -Scope Process -Force;" `
+              "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" `
+              "Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force;" `
+              "Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted;" `
+              "Install-Module PSWindowsUpdate -Force;" `
+              "Import-Module PSWindowsUpdate;" `
+              "Add-WUServiceManager -MicrosoftUpdate -Confirm:`$false | Out-Null;" `
+              "Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose"
 
       - name: Wait for VM after Windows auto-reboot
         if: contains(env.OS_NAME, 'Windows-Server')
@@ -298,6 +305,20 @@ jobs:
           done
           echo "::warning::VM didn't report running again within the wait window."
 
+      - name: Windows updates (2nd pass) + report remaining
+        if: contains(env.OS_NAME, 'Windows-Server')
+        run: |
+          az vm run-command invoke \
+            --resource-group "$RG" \
+            --name "$VM_NAME" \
+            --command-id RunPowerShellScript \
+            --scripts `
+              "$ErrorActionPreference='Stop'; Import-Module PSWindowsUpdate;" `
+              "Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -AutoReboot -Verbose;" `
+              "$p = Get-WindowsUpdate -MicrosoftUpdate -IgnoreReboot | Where-Object { -not $_.IsInstalled };" `
+              "Write-Host 'Remaining updates:' ($p | Select-Object Title,KB,DownloadStatus,IsInstalled | Out-String)"
+
+      # ---------- Linux ----------
       - name: Linux updates (apt)
         if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')
         run: |
@@ -311,8 +332,6 @@ jobs:
       - name: Enable Defender for Servers
         run: az security pricing create --name VirtualMachines --tier Standard
 
-      # -------- Sentinel / Log Analytics: auto-create and attach --------
-
       - name: Ensure Log Analytics workspace exists (auto-create)
         id: la_ws
         shell: bash
@@ -321,7 +340,6 @@ jobs:
           RG_NAME="$RG"
           LOCATION="${REGION:-$(az group show -n "$RG_NAME" --query location -o tsv)}"
 
-          # If user provided AZURE_WORKSPACE as a secret, use it; else default to "<rg>-workspace"
           WS_NAME="${{ secrets.AZURE_WORKSPACE || '' }}"
           if [ -z "$WS_NAME" ]; then
             WS_NAME="${RG_NAME}-workspace"
@@ -358,7 +376,6 @@ jobs:
         run: |
           set -euo pipefail
           TARGET="$WORKSPACE_ID"
-          # 'default' is the only allowed name
           if az security workspace-setting list --query "[?name=='default'].id" -o tsv | grep -q .; then
             echo "Updating existing default workspace-setting -> $TARGET"
             az security workspace-setting update --name default --target-workspace "$TARGET" >/dev/null
@@ -368,30 +385,46 @@ jobs:
           fi
           echo "Defender workspace-setting configured."
 
-      - name: Enable Microsoft Sentinel (SecurityInsights solution)
+      - name: Enable Microsoft Sentinel on the workspace (idempotent)
         shell: bash
         run: |
           set -euo pipefail
           RG_NAME="$RG"
           LOCATION="${REGION:-$(az group show -n "$RG_NAME" --query location -o tsv)}"
+          WS="$WORKSPACE_NAME"
 
-          # Ensure the extension that provides the solution command is available
-          az extension add --name log-analytics-solution >/dev/null 2>&1 || true
+          echo "Target workspace: $WS in $RG_NAME ($LOCATION)"
 
-          # Create the Sentinel solution (idempotent)
-          if ! az monitor log-analytics solution show \
-                --resource-group "$RG_NAME" \
-                --name "SecurityInsights($WORKSPACE_NAME)" >/dev/null 2>&1; then
-            echo "Enabling Microsoft Sentinel on workspace '$WORKSPACE_NAME'..."
-            az monitor log-analytics solution create \
-              --resource-group "$RG_NAME" \
-              --workspace "$WORKSPACE_NAME" \
-              --solution-type SecurityInsights \
-              --plan publisher Microsoft \
-              --plan product OMSGallery/SecurityInsights \
-              --location "$LOCATION" >/dev/null
+          az extension add --name sentinel >/dev/null 2>&1 || true
+          if az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
+             --query properties.onboardingState -o tsv >/dev/null 2>&1; then
+
+            state=$(az sentinel onboarding-state show -g "$RG_NAME" --workspace-name "$WS" \
+                      --query properties.onboardingState -o tsv)
+            if [ "$state" != "Onboarded" ]; then
+              echo "Enabling Sentinel via onboarding-state..."
+              az sentinel onboarding-state enable -g "$RG_NAME" --workspace-name "$WS" >/dev/null
+            else
+              echo "Sentinel already Onboarded."
+            fi
+
           else
-            echo "Microsoft Sentinel already enabled for '$WORKSPACE_NAME'."
+            echo "Sentinel extension not usable here; falling back to classic solution."
+            az extension add --name log-analytics-solution >/dev/null 2>&1 || true
+
+            if ! az monitor log-analytics solution show \
+                  --resource-group "$RG_NAME" \
+                  --name "SecurityInsights($WS)" >/dev/null 2>&1; then
+              echo "Creating classic SecurityInsights solution..."
+              az monitor log-analytics solution create \
+                --resource-group "$RG_NAME" \
+                --workspace "$WS" \
+                --solution-type SecurityInsights \
+                --plan publisher=Microsoft product=OMSGallery/SecurityInsights \
+                --location "$LOCATION" >/dev/null
+            else
+              echo "SecurityInsights solution already present."
+            fi
           fi
 
       - name: Tag VM as secured

@@ -14,7 +14,7 @@ This directory contains all Ansible playbooks, inventory files, and configuratio
 
   * `windows.yml` → Windows defaults
   * `linux.yml` → Linux defaults
-  * `vault.yml` → Encrypted secrets
+  * `all/vault.yml` → Encrypted secrets (shared across all groups)
 
 * **host\_vars/**
   Host-specific variables (generated automatically by `ansible-init.sh`).
@@ -41,27 +41,27 @@ This directory contains all Ansible playbooks, inventory files, and configuratio
 
 ## 🔐 Vault Management
 
-Sensitive values (admin passwords, SSH passphrases, API keys) are stored in `group_vars/vault.yml` or host-specific vault files under `host_vars/`.
+Sensitive values (admin passwords, SSH passphrases, API keys) are stored in `group_vars/all/vault.yml`, encrypted with **Ansible Vault**.
 
 ### Create Vault
 
 ```bash
 ANSIBLE_VAULT_PASSWORD_FILE=.vault-pass.txt \
-ansible-vault create ansible/group_vars/vault.yml
+ansible-vault create ansible/group_vars/all/vault.yml
 ```
 
 ### Edit Vault
 
 ```bash
 ANSIBLE_VAULT_PASSWORD_FILE=.vault-pass.txt \
-ansible-vault edit ansible/group_vars/vault.yml
+ansible-vault edit ansible/group_vars/all/vault.yml
 ```
 
 ### View Vault
 
 ```bash
 ANSIBLE_VAULT_PASSWORD_FILE=.vault-pass.txt \
-ansible-vault view ansible/group_vars/vault.yml
+ansible-vault view ansible/group_vars/all/vault.yml
 ```
 
 ### Vault Password File
@@ -89,7 +89,7 @@ tools/ansible-init.sh \
 This will:
 
 * Ensure `ansible.cfg`, `group_vars`, `host_vars` exist
-* Create `vault.yml` if missing
+* Create `all/vault.yml` if missing
 * Add per-host vaulted files under `host_vars/`
 * Leave a ready-to-run inventory
 
@@ -143,7 +143,7 @@ make patch-monthly
 
 ## ✅ Best Practices
 
-* Always **encrypt secrets** in vaults (`group_vars/vault.yml` or `host_vars/*/vault.yml`).
+* Always **encrypt secrets** in `group_vars/all/vault.yml`.
 * Never commit `.vault-pass.txt` to Git.
 * Run `ansible-lint` before committing.
 * Use `make inventory-graph` to visualize your inventory.
@@ -156,7 +156,7 @@ make patch-monthly
 
    ```bash
    ANSIBLE_VAULT_PASSWORD_FILE=.vault-pass.txt \
-   ansible-vault edit ansible/group_vars/vault.yml
+   ansible-vault edit ansible/group_vars/all/vault.yml
    ```
 
 2. Add variable:

@@ -1,0 +1,8 @@
+# already there
+ansible_host: "{{ ansible_host_map['skynet-addns'] }}"
+
+# DC-specific auth
+ansible_user: "SKyN3t\\Administrator"        # use your exact domain NetBIOS name
+ansible_password: "{{ vault_dc_admin_password }}"
+ansible_winrm_transport: ntlm
+ansible_port: 5985

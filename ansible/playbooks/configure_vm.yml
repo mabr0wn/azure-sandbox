@@ -1,0 +1,12 @@
+- name: Configure Windows VM
+  hosts: windows
+  gather_facts: no
+  roles:
+    - windows_setup
+
+- name: Configure Ubuntu VM
+  hosts: linux
+  become: yes
+  gather_facts: yes
+  roles:
+    - linux_setup

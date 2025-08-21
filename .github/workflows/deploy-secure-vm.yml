@@ -584,3 +584,122 @@ jobs:
           az resource tag \
             --ids "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.Compute/virtualMachines/$VM_NAME" \
             --tags environment=production owner=automation compliance=verified
+            
+  configure-vm:
+    runs-on: ubuntu-latest
+    needs: secure-vm
+    if: needs.deploy-and-clean.outputs.skip == 'false' && success()
+    env:
+      VM_NAME: ${{ needs.deploy-and-clean.outputs.vm_name }}
+      OS_NAME: ${{ needs.deploy-and-clean.outputs.os_norm }}
+      RG: ${{ secrets.AZURE_RG }}
+      # Make Ansible pick up your cfg automatically
+      ANSIBLE_CONFIG: ansible/ansible.cfg
+      ANSIBLE_VAULT_PASSWORD_FILE: .vault-pass.txt
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+    
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+      - name: Install Ansible (and deps for WinRM)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip3 install --upgrade pip
+          pip3 install "ansible[azure]" pywinrm
+        
+      - name: Write secrets (Vault pass + Linux SSH key)
+        run: |
+          # Vault password (optional but recommended)
+          if [ -n "${{ secrets.ANSIBLE_VAULT_PASS }}" ]; then
+            echo "${{ secrets.ANSIBLE_VAULT_PASS }}" > .vault-pass.txt
+            chmod 600 .vault-pass.txt
+          fi
+          # Linux SSH key
+          if [ -n "${{ secrets.LINUX_SSH_KEY }}" ]; then
+            mkdir -p ~/.ssh
+            echo "${{ secrets.LINUX_SSH_KEY }}" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+          fi
+        
+      # Safer: show graph of static inventory (won't parse azure/hyper-v)
+      - name: Show Ansible inventory graph
+        run: ansible-inventory -i ansible/inventory/ping_hosts.ini --graph
+        
+      - name: Resolve VM public IP
+        id: getip
+        run: |
+          IP=$(az vm show -g "$RG" -n "$VM_NAME" --show-details --query publicIps -o tsv)
+          if [ -z "$IP" ]; then echo "No public IP found"; exit 1; fi
+          echo "ip=$IP" >> "$GITHUB_OUTPUT"
+        
+      - name: Run Ansible Playbook (Windows)
+        if: contains(env.OS_NAME, 'Windows-Server')
+        env:
+          IP: ${{ steps.getip.outputs.ip }}
+          WIN_USER: Administrator
+          WIN_PASS: ${{ secrets.WINDOWS_ADMIN_PASSWORD }}
+        run: |
+          INV="${IP},"
+          # Optional: quick sanity check
+          ansible -i "$INV" all -m ansible.windows.win_ping \
+            -e ansible_connection=winrm \
+            -e ansible_host="${IP}" \
+            -e ansible_port=5985 \
+            -e ansible_winrm_scheme=http \
+            -e ansible_winrm_transport=basic \
+            -e ansible_winrm_server_cert_validation=ignore \
+            -e ansible_user="${WIN_USER}" \
+            -e ansible_password="${WIN_PASS}"
+        
+          ansible-playbook -i "$INV" ansible/playbooks/configure_vm.yml \
+            --limit all \
+            -e ansible_connection=winrm \
+            -e ansible_host="${IP}" \
+            -e ansible_port=5985 \
+            -e ansible_winrm_scheme=http \
+            -e ansible_winrm_transport=basic \
+            -e ansible_winrm_server_cert_validation=ignore \
+            -e ansible_user="${WIN_USER}" \
+            -e ansible_password="${WIN_PASS}"
+        
+      - name: Install Windows apps (apps-windows.yml)
+        if: contains(env.OS_NAME, 'Windows-Server')
+        env:
+          IP: ${{ steps.getip.outputs.ip }}
+          WIN_USER: Administrator
+          WIN_PASS: ${{ secrets.WINDOWS_ADMIN_PASSWORD }}
+        run: |
+          INV="${IP},"
+          ansible-playbook -i "$INV" ansible/playbooks/apps-windows.yml \
+            --limit all \
+            -e ansible_connection=winrm \
+            -e ansible_host="${IP}" \
+            -e ansible_port=5985 \
+            -e ansible_winrm_scheme=http \
+            -e ansible_winrm_transport=basic \
+            -e ansible_winrm_server_cert_validation=ignore \
+            -e ansible_user="${WIN_USER}" \
+            -e ansible_password="${WIN_PASS}" \
+            -e ansible_become=false
+        
+      - name: Run Ansible Playbook (Ubuntu/Debian)
+        if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')
+        env:
+          IP: ${{ steps.getip.outputs.ip }}
+        run: |
+          INV="${IP},"
+          # Optional: quick SSH ping
+          ansible -i "$INV" all -m ping \
+            -e ansible_connection=ssh \
+            -e ansible_user=azureuser \
+            --private-key ~/.ssh/id_rsa
+          ansible-playbook -i "$INV" ansible/playbooks/configure_vm.yml \
+            --limit all \
+            -e ansible_connection=ssh \
+            -e ansible_user=azureuser \
+            --private-key ~/.ssh/id_rsa

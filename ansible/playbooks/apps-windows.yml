@@ -1,0 +1,71 @@
+# playbooks/apps-windows.yml
+- name: Install apps without winget
+  hosts: windows
+  gather_facts: false
+  become: false
+
+  collections:
+    - ansible.windows
+
+  vars:
+    ansible_connection: winrm
+    ansible_shell_type: powershell
+    ansible_winrm_operation_timeout_sec: 1800
+    ansible_winrm_read_timeout_sec: 2100
+
+  tasks:
+    # --- Brave via EXE (Option B) ---
+    - name: Ensure temp directory exists
+      ansible.windows.win_file:
+        path: C:\Temp
+        state: directory
+
+    - name: Download Brave installer
+      ansible.windows.win_get_url:
+        url: https://laptop-updates.brave.com/latest/winx64
+        dest: C:\Temp\BraveSetup.exe
+        force: yes
+
+    - name: Stop Brave-related processes (avoid updater hang)
+      ansible.windows.win_shell: >
+        Get-Process brave*, *Brave*Update* -ErrorAction SilentlyContinue |
+        Stop-Process -Force
+      changed_when: false
+
+    - name: Install Brave silently (idempotent)
+      ansible.windows.win_package:
+        path: C:\Temp\BraveSetup.exe
+        arguments: /silent /install
+        state: present
+        creates_path: 'C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe'
+        expected_return_code:
+          - 0
+          - 1641
+          - 3010
+        wait_for_children: no
+
+    # --- VS Code ---
+    - name: Install VS Code (system-wide)
+      ansible.windows.win_package:
+        path: https://update.code.visualstudio.com/latest/win32-x64/stable
+        arguments: /VERYSILENT /MERGETASKS=!runcode
+        state: present
+        creates_path: 'C:\Program Files\Microsoft VS Code\Code.exe'
+        expected_return_code:
+          - 0
+          - 1641
+          - 3010
+        wait_for_children: no
+
+    # --- Google Chrome ---
+    - name: Install Google Chrome (system-wide)
+      ansible.windows.win_package:
+        path: https://dl.google.com/chrome/install/latest/chrome_installer.exe
+        arguments: /silent /install
+        state: present
+        creates_path: 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+        expected_return_code:
+          - 0
+          - 1641
+          - 3010
+        wait_for_children: no

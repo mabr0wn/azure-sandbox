@@ -5,7 +5,7 @@ param domainFQDN           = 'SkyN3t.local'
 param kvname               = 'kv-skynet'
 param domainJoinUserName   = 'AzureServiceAccount'
 param domainJoinSecretName = 'domainJoinSAPassSecret'
-param vmUserName           = 'SkynetAdmin'
+param vmUserName           = 'Administrator'
 param vmSecretName         = 'vmPasswordSecret'
 
 // --- Secure values from Key Vault ---

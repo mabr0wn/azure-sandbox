@@ -2,3 +2,4 @@
 
 #ignore Bicep Params files.
 #*.bicepparam
+.vault-pass.txt

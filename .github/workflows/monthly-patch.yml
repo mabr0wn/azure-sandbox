@@ -1,0 +1,51 @@
+name: Monthly VM Patching
+
+on:
+  schedule:
+    # Runs first Sunday of every month at 02:00 UTC
+    - cron: "0 2 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  monthly-patch:
+    runs-on: ubuntu-latest
+    env:
+      RG: ${{ secrets.AZURE_RG }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip3 install ansible[azure]
+
+      - name: Setup SSH key for Linux
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.LINUX_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Run Windows Patch Playbook
+        run: |
+          ansible-playbook ansible/playbooks/monthly_patch.yml \
+            --limit windows \
+            -e ansible_user=Administrator \
+            -e ansible_password="${{ secrets.WINDOWS_ADMIN_PASSWORD }}"
+
+      - name: Run Linux Patch Playbook
+        run: |
+          ansible-playbook ansible/playbooks/monthly_patch.yml \
+            --limit linux \
+            -e ansible_user=azureuser \
+            --private-key ~/.ssh/id_rsa

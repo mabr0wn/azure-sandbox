@@ -1,8 +1,9 @@
 ansible_connection: winrm
 ansible_port: 5985
 ansible_winrm_scheme: http
-ansible_winrm_transport: basic
+ansible_winrm_transport: ntlm          # avoids Basic being blocked by GPO
 ansible_winrm_server_cert_validation: ignore
-ansible_user: Administrator
-ansible_password: "{{ vault_windows_admin_password }}"
 ansible_become: false
+
+ansible_user: "SKYNET\\{{ vault_domain_admin_user }}"
+ansible_password: "{{ vault_windows_admin_password }}"

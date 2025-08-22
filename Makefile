@@ -24,28 +24,30 @@ export ANSIBLE_VAULT_PASSWORD_FILE := $(VAULT_PASS_FILE)
 .PHONY: help
 help:
 	@echo "Common commands:"
-	@echo "  make bootstrap               # Create group_vars + vaulted password file"
-	@echo "  make deps                    # Install Ansible (with Azure) + tools"
-	@echo "  make write-secrets           # Write Vault pass + SSH key from env vars"
-	@echo "  make inventory-graph         # Show merged inventory (static)"
-	@echo "  make ping-windows            # Run ping_test.yml against Windows hosts"
-	@echo "  make ping-linux              # Run ping_test.yml against Linux hosts"
-	@echo "  make ping-all                # Run ping_test.yml against all hosts"
-	@echo "  make win-ping                # Direct win_ping test for [windows] group"
-	@echo "  make configure               # Run configure playbook for all"
-	@echo "  make configure-win           # Configure Windows only"
-	@echo "  make configure-linux         # Configure Linux only"
-	@echo "  make patch-monthly           # Run monthly patch playbook"
-	@echo "  make apps-win HOST=<host>    # Run Windows apps playbook for a host"
-	@echo "                               # ex: make apps-win HOST=skynet-ca"
-	@echo "                               # ex: make apps-win HOST=skynet-veeam"
-	@echo "  make inv-graph-azure         # Show Azure dynamic inventory (on demand)"
-	@echo "  make inv-graph-hyperv        # Show Hyper-V inventory (on demand)"
-	@echo "  make deploy                  # Deploy VM via Bicep (uses main.bicepparam)"
-	@echo "  make spot-deploy             # Example: deploy Spot VM via az cli (manual)"
-	@echo "  make pwsh-install            # Install PowerShell for Hyper-V inventory"
-	@echo "  make vault-edit              # Edit vaulted secrets"
-	@echo "  make vault-view              # View vaulted secrets (read-only)"
+	@echo "  make bootstrap                 # Create group_vars + vaulted password file"
+	@echo "  make deps                      # Install Ansible (with Azure) + tools"
+	@echo "  make write-secrets             # Write Vault pass + SSH key from env vars"
+	@echo "  make inventory-graph           # Show merged inventory (static)"
+	@echo "  make ping-windows              # Run ping_test.yml against Windows hosts"
+	@echo "  make ping-linux                # Run ping_test.yml against Linux hosts"
+	@echo "  make ping-all                  # Run ping_test.yml against all hosts"
+	@echo "  make win-ping                  # Direct win_ping test for [windows] group"
+	@echo "  make configure                 # Run configure playbook for all"
+	@echo "  make configure-win             # Configure Windows only"
+	@echo "  make configure-linux           # Configure Linux only"
+	@echo "  make patch-monthly [HOST=<h>]  # Run monthly patch playbook (all or one host)"
+	@echo "                                 #   ex: make patch-monthly"
+	@echo "                                 #   ex: make patch-monthly HOST=skynet-veeam"
+	@echo "  make apps-win HOST=<h>         # Run Windows apps playbook for a host"
+	@echo "                                 #   ex: make apps-win HOST=skynet-ca"
+	@echo "                                 #   ex: make apps-win HOST=skynet-veeam"
+	@echo "  make inv-graph-azure           # Show Azure dynamic inventory (on demand)"
+	@echo "  make inv-graph-hyperv          # Show Hyper-V inventory (on demand)"
+	@echo "  make deploy                    # Deploy VM via Bicep (uses main.bicepparam)"
+	@echo "  make spot-deploy               # Example: deploy Spot VM via az cli (manual)"
+	@echo "  make pwsh-install              # Install PowerShell for Hyper-V inventory"
+	@echo "  make vault-edit                # Edit vaulted secrets"
+	@echo "  make vault-view                # View vaulted secrets (read-only)"
 
 # =========
 # BOOTSTRAP
@@ -148,7 +150,16 @@ configure-linux:
 
 .PHONY: patch-monthly
 patch-monthly:
-	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES ansible-playbook -i $(INV) $(PLAY_PATCH)
+	@if [ -z "$(HOST)" ]; then \
+	  echo "▶ Running patch-monthly on ALL hosts..."; \
+	  OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES \
+	  ansible-playbook -i $(INV) $(PLAY_PATCH); \
+	else \
+	  echo "▶ Running patch-monthly on host $(HOST)..."; \
+	  OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES \
+	  ansible-playbook -i $(INV) $(PLAY_PATCH) --limit $(HOST); \
+	fi
+
 
 # =========
 # WINDOWS APP DEPLOY

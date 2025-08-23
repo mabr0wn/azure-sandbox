@@ -1,0 +1,25 @@
+- name: Provision Windows servers
+  hosts: windows
+  gather_facts: false
+  roles:
+    - role: common
+    - role: browsers
+    - role: editors
+    - role: devtools
+
+# --- Optional: Reboot if needed ---
+- name: Reboot if needed
+  ansible.windows.win_reboot:
+  when: ansible_facts.reboot_required is defined and ansible_facts.reboot_require
+  
+# --- Optional: Post-check (prove installs) ---
+- name: Verify binaries exist
+  ansible.windows.win_shell: 'cmd /c where {{ item }}'
+  loop:
+    - git.exe
+    - python.exe
+    - code.exe
+    - brave.exe
+    - chrome.exe
+  register: where_out
+  changed_when: false

@@ -177,6 +177,11 @@ apps-win:
 	OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES \
 	ansible-playbook -i $(INV) $(ANSIBLE_DIR)/playbooks/apps-windows.yml \
 	  --limit $(HOST) -e ansible_become=false
+# apps-win:
+# 	ANSIBLE_CONFIG=ansible/ansible.cfg \
+# 	ansible-playbook -i ansible/inventory/ping_hosts.ini \
+# 		ansible/playbooks/windows-workstation.yml \
+# 		--limit $(HOST) -e ansible_become=false
 
 # =========
 # VAULT

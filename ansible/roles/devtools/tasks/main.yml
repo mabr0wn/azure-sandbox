@@ -1,0 +1,5 @@
+# Devtools role (Git, Python)
+# Add tasks here. Example:
+# - name: Example
+#   ansible.builtin.debug:
+#     msg: "Hello from Devtools role (Git, Python)"

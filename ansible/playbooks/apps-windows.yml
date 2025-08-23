@@ -14,12 +14,12 @@
     ansible_winrm_read_timeout_sec: 2100
 
   tasks:
-    # --- Brave via EXE (Option B) ---
     - name: Ensure temp directory exists
       ansible.windows.win_file:
         path: C:\Temp
         state: directory
 
+    # --- Brave (EXE) ---
     - name: Download Brave installer
       ansible.windows.win_get_url:
         url: https://laptop-updates.brave.com/latest/winx64
@@ -38,10 +38,7 @@
         arguments: /silent /install
         state: present
         creates_path: 'C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe'
-        expected_return_code:
-          - 0
-          - 1641
-          - 3010
+        expected_return_code: [0, 1641, 3010]
         wait_for_children: no
 
     # --- VS Code ---
@@ -51,10 +48,7 @@
         arguments: /VERYSILENT /MERGETASKS=!runcode
         state: present
         creates_path: 'C:\Program Files\Microsoft VS Code\Code.exe'
-        expected_return_code:
-          - 0
-          - 1641
-          - 3010
+        expected_return_code: [0, 1641, 3010]
         wait_for_children: no
 
     # --- Google Chrome ---
@@ -64,8 +58,79 @@
         arguments: /silent /install
         state: present
         creates_path: 'C:\Program Files\Google\Chrome\Application\chrome.exe'
-        expected_return_code:
-          - 0
-          - 1641
-          - 3010
+        expected_return_code: [0, 1641, 3010]
         wait_for_children: no
+
+    # --- Git for Windows (pinned) ---
+    - name: Download Git for Windows (64-bit) installer
+      ansible.windows.win_get_url:
+        url: https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.1/Git-2.47.0-64-bit.exe
+        dest: C:\Temp\Git-64-bit.exe
+        force: yes
+
+    - name: Install Git for Windows silently
+      ansible.windows.win_package:
+        path: C:\Temp\Git-64-bit.exe
+        arguments: /VERYSILENT /NORESTART /SP- /NOCANCEL
+        state: present
+        creates_path: 'C:\Program Files\Git\bin\git.exe'
+        expected_return_code: [0, 1641, 3010]
+        wait_for_children: no
+
+    # --- Python 3 (latest 64-bit, safe URL check) ----------------------
+    - name: Resolve latest available Python 3 amd64 EXE URL
+      ansible.windows.win_shell: |
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $index = (Invoke-WebRequest 'https://www.python.org/ftp/python/' -UseBasicParsing).Content
+        $vers = [regex]::Matches($index,'>(\d+\.\d+\.\d+)/<') |
+                ForEach-Object { $_.Groups[1].Value } |
+                Where-Object { $_ -like '3.*' } |
+                Sort-Object {[version]$_} -Descending
+        foreach ($v in $vers) {
+          $url = "https://www.python.org/ftp/python/$v/python-$v-amd64.exe"
+          try {
+            $resp = Invoke-WebRequest -Uri $url -Method Head -UseBasicParsing -ErrorAction Stop
+            if ($resp.StatusCode -eq 200) { $url; break }
+          } catch { continue }
+        }
+      register: py_url
+      changed_when: false
+    
+    - name: Fail clearly if no Python EXE was found
+      ansible.builtin.fail:
+        msg: "Could not resolve a valid Python installer URL from python.org."
+      when: (py_url.stdout | trim) == ""
+    
+    # Idempotence guard: is any Python 3 already installed?
+    - name: Check for existing Python 3 installation (registry)
+      ansible.windows.win_shell: |
+        $roots = @(
+          'HKLM:\SOFTWARE\Python\PythonCore',
+          'HKLM:\SOFTWARE\WOW6432Node\Python\PythonCore'
+        )
+        foreach ($r in $roots) {
+          if (Test-Path $r) {
+            if ((Get-ChildItem $r -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -match '^3\.' }).Count -gt 0) {
+              'FOUND'; exit
+            }
+          }
+        }
+        'MISSING'
+      register: py_installed
+      changed_when: false
+    
+    - name: Download latest Python installer
+      ansible.windows.win_get_url:
+        url: "{{ py_url.stdout | trim }}"
+        dest: C:\Temp\python-amd64.exe
+        force: yes
+      when: py_installed.stdout | trim == 'MISSING'
+    
+    - name: Install Python system-wide, add to PATH
+      ansible.windows.win_package:
+        path: C:\Temp\python-amd64.exe
+        arguments: /quiet InstallAllUsers=1 PrependPath=1 Include_test=0 SimpleInstall=1
+        state: present
+        expected_return_code: [0, 1641, 3010]
+        wait_for_children: no
+      when: py_installed.stdout | trim == 'MISSING'

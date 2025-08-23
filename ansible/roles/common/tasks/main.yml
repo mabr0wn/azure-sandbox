@@ -1,0 +1,5 @@
+# Common role (C:\Temp, helpers)
+# Add tasks here. Example:
+# - name: Example
+#   ansible.builtin.debug:
+#     msg: "Hello from Common role (C:\Temp, helpers)"

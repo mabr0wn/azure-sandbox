@@ -1,0 +1,5 @@
+# Browsers role (Brave, Chrome)
+# Add tasks here. Example:
+# - name: Example
+#   ansible.builtin.debug:
+#     msg: "Hello from Browsers role (Brave, Chrome)"

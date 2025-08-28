@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # --- 1) Base job: lint + unit/integration tests (no dependencies) ---
+  lint-and-tests:
+    name: Lint & Unit/Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dev deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: ansible-lint
+        run: |
+          ansible-lint -v
+
+      # Run non-system tests (unit + integration)
+      - name: Pytest (unit + integration)
+        run: |
+          pytest -q -m "unit or integration"
+          # or simply: pytest -q
+          # (your pytest.ini already limits testpaths to ansible/tests and scripts/tests)
+
+  # --- 2) System tests: gated by secrets, depends on lint-and-tests ---
+  system-tests:
+    name: System Tests (real hosts/cloud)
+    runs-on: ubuntu-latest
+    needs: [lint-and-tests]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dev deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Compute flags from secrets (job-level `secrets` not allowed, step-level is)
+      - name: Compute gates from secrets
+        id: gates
+        env:
+          WIN_HOST: ${{ secrets.WIN_HOST }}
+          WIN_USER: ${{ secrets.WIN_USER }}
+          WIN_PASS: ${{ secrets.WIN_PASS }}
+          AZCREDS:  ${{ secrets.AZURE_CREDENTIALS_JSON }}
+        run: |
+          win_ready=false
+          if [ -n "$WIN_HOST" ] && [ -n "$WIN_USER" ] && [ -n "$WIN_PASS" ]; then
+            win_ready=true
+          fi
+          echo "win_ready=$win_ready" >> "$GITHUB_OUTPUT"
+
+          azure_ready=false
+          if [ -n "$AZCREDS" ]; then
+            azure_ready=true
+          fi
+          echo "azure_ready=$azure_ready" >> "$GITHUB_OUTPUT"
+
+      - name: Configure Azure auth (optional)
+        if: ${{ steps.gates.outputs.azure_ready == 'true' }}
+        env:
+          AZURE_CREDENTIALS_JSON: ${{ secrets.AZURE_CREDENTIALS_JSON }}
+        run: |
+          mkdir -p ~/.azure
+          echo "$AZURE_CREDENTIALS_JSON" > ~/.azure/credentials.json
+          chmod 600 ~/.azure/credentials.json
+
+      - name: Run Azure system tests
+        if: ${{ steps.gates.outputs.azure_ready == 'true' }}
+        run: |
+          pytest -q ansible/tests/unit/system/ansible/linux
+
+      - name: Run Windows system tests
+        if: ${{ steps.gates.outputs.win_ready == 'true' }}
+        env:
+          WIN_HOST: ${{ secrets.WIN_HOST }}
+          WIN_USER: ${{ secrets.WIN_USER }}
+          WIN_PASS: ${{ secrets.WIN_PASS }}
+        run: |
+          pytest -q ansible/tests/unit/system/ansible/windows

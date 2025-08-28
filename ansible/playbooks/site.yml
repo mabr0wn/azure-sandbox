@@ -1,0 +1,8 @@
+- name: Site entrypoint
+  hosts: all
+  gather_facts: no
+  roles:
+    - windows_setup
+  tasks:
+    - include_tasks: ../policies/windows/firewall.yml
+    - include_tasks: ../policies/windows/password_policy.yml

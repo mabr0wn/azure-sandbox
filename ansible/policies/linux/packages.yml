@@ -1,0 +1,9 @@
+---
+# Ensure baseline tools are present
+- name: Install baseline packages
+  ansible.builtin.package:
+    name:
+      - vim
+      - curl
+      - htop
+    state: present

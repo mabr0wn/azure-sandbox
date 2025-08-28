@@ -1,13 +1,13 @@
 # Ansible Automation Guide
 
-This directory contains all Ansible playbooks, inventory files, and configurations for managing VMs across **Azure, Hyper-V, and hybrid environments**.
+This directory contains all **Ansible playbooks, roles, inventory, and automated tests** for managing VMs across **Azure, Hyper-V, and hybrid environments**.
 
 ---
 
 ## 📂 Structure
 
 * **inventory/**
-  Contains static and dynamic inventory sources (Azure, Hyper-V, etc.).
+  Static and dynamic inventory sources (Azure, Hyper-V, localhost for testing).
 
 * **group\_vars/**
   Group-level variables:
@@ -17,54 +17,54 @@ This directory contains all Ansible playbooks, inventory files, and configuratio
   * `all/vault.yml` → Encrypted secrets (shared across all groups)
 
 * **host\_vars/**
-  Host-specific variables (generated automatically by `ansible-init.sh`).
+  Host-specific variables (created automatically by `ansible-init.sh`).
 
 * **playbooks/**
-  Main playbooks:
+  Core playbooks:
 
-  * `apps-windows.yml` → Install & configure Windows apps (Azure build)
+  * `apps-windows.yml` → Install & configure Windows apps
   * `configure_vm.yml` → Apply baseline config
-  * `monthly_patch.yml` → Run patching tasks
+  * `monthly_patch.yml` → Patching tasks
+  * `site.yml` → Entrypoint for full role + policy application
+
+* **roles/**
+  Modular role implementations: `common/`, `browsers/`, `editors/`, `windows_setup/`, etc.
+
+* **policies/**
+  Policy-driven tasks, e.g. `windows/firewall.yml`, `windows/password_policy.yml`.
+
+* **tests/**
+  Organized into:
+
+  * `unit/` → fast, local checks (syntax, roles directory exists, playbook parsing)
+  * `integration/` → playbooks run in `--check` mode against test inventories
+  * `system/` → end-to-end, runs against real cloud/hosts (Linux + Windows baselines)
 
 * **tools/**
+  Helper scripts, e.g.:
 
-  * `ansible-init.sh` → Bootstrap inventories, vaults, and host vars
-  * Other helper scripts (inventory generation, etc.)
+  * `ansible-init.sh` → bootstrap inventories and vaults
+  * `clean-pycache.sh` → clear `__pycache__` directories
 
 * **ansible.cfg**
-  Default configuration for inventory path, connection details, privilege escalation, etc.
+  Default configuration (inventory path, roles path, escalation, etc.).
 
 * **Makefile**
-  Common automation targets (ping, configure, patch, deploy).
+  Common automation targets (ping, configure, patch, deploy, test).
 
 ---
 
 ## 🔐 Vault Management
 
-Sensitive values (admin passwords, SSH passphrases, API keys) are stored in `group_vars/all/vault.yml`, encrypted with **Ansible Vault**.
-
-### Create Vault
+Sensitive values (admin passwords, API keys, certs) live in `group_vars/all/vault.yml` and are encrypted with **Ansible Vault**.
 
 ```bash
-ANSIBLE_VAULT_PASSWORD_FILE=.vault-pass.txt \
 ansible-vault create ansible/group_vars/all/vault.yml
-```
-
-### Edit Vault
-
-```bash
-ANSIBLE_VAULT_PASSWORD_FILE=.vault-pass.txt \
 ansible-vault edit ansible/group_vars/all/vault.yml
-```
-
-### View Vault
-
-```bash
-ANSIBLE_VAULT_PASSWORD_FILE=.vault-pass.txt \
 ansible-vault view ansible/group_vars/all/vault.yml
 ```
 
-### Vault Password File
+Vault password file:
 
 ```bash
 echo "CHANGE_ME" > .vault-pass.txt
@@ -74,57 +74,97 @@ echo ".vault-pass.txt" >> .gitignore
 
 ---
 
+## 🧪 Testing with Pytest
+
+We use **pytest** to validate playbooks, roles, and integration scenarios.
+
+### Markers
+
+Defined in `pytest.ini`:
+
+* `unit` → fast, pure-Python or syntax-only checks
+* `integration` → Ansible dry-runs (`--check`) for playbooks
+* `system` → real cloud/host validation (requires inventory + credentials)
+* `windows` / `linux` → platform-specific subsets
+* `ansible` → general Ansible validation (lint, syntax)
+
+### Run Tests
+
+```bash
+# Run all
+pytest -v
+
+# Only unit tests
+pytest -m unit
+
+# Only integration
+pytest -m integration
+
+# Windows-only
+pytest -m windows
+```
+
+### Example Unit Tests
+
+* Verify `roles/` directory exists
+* Ensure playbooks parse with `ansible-playbook --syntax-check`
+* Policy YAMLs load without error
+
+### Example Integration Tests
+
+* Run `site.yml` in `--check` mode
+* Validate `windows_policy.yml` applies security policies
+* Ensure `configure_vm.yml` includes required roles
+
+### Example System Tests
+
+* Linux baseline (`test_baseline_real.py`) — ensures SSH connectivity and basic packages
+* Windows baseline (`test_apps_windows_check.py`) — verifies app installs and WinRM availability
+
+---
+
 ## ⚡ Bootstrapping with `ansible-init.sh`
 
-Quickly initialize a new inventory and host vars:
+Quickly initialize new inventories:
 
 ```bash
 tools/ansible-init.sh \
   --vault-pass .vault-pass.txt \
   --host skynet-ca=172.16.3.154 \
-  --host skynet-veeam=172.16.3.156 \
-  --host skynet-addns=172.16.3.105
+  --host skynet-veeam=172.16.3.156
 ```
 
-This will:
+Creates:
 
-* Ensure `ansible.cfg`, `group_vars`, `host_vars` exist
-* Create `all/vault.yml` if missing
-* Add per-host vaulted files under `host_vars/`
-* Leave a ready-to-run inventory
-
-Validate:
-
-```bash
-make inventory-graph
-```
+* `ansible.cfg` if missing
+* `vault.yml` in `group_vars/all`
+* Host-specific vaulted files in `host_vars/`
 
 ---
 
 ## ⚡ Running Playbooks
 
-### Ping
+Ping:
 
 ```bash
 make ping-linux
 make ping-windows
 ```
 
-### Configure
+Configure:
 
 ```bash
-make configure
 make configure-linux
 make configure-win
 ```
 
-### Windows App Install (Azure build)
+Windows Apps:
 
 ```bash
 ansible-playbook -i ansible/inventory playbooks/apps-windows.yml -l skynet-veeam
 ```
 
-### Patching
+Patch:
 
 ```bash
 make patch-monthly
@@ -134,39 +174,26 @@ make patch-monthly
 
 ## 🚀 Deployment Notes
 
-* Use **Makefile** for day-to-day tasks (`make help` for options).
-* `ansible-init.sh` lets you declare and generate new hosts quickly.
-* GitHub Actions workflows can call Make targets for CI/CD.
-* Azure VM deployment via Bicep supported (`make deploy`).
+* CI/CD can invoke `pytest` for validation and `make` for automation.
+* Azure Bicep integration supported for VM provisioning.
+* Hybrid deployments validated via integration/system tests.
 
 ---
 
 ## ✅ Best Practices
 
-* Always **encrypt secrets** in `group_vars/all/vault.yml`.
-* Never commit `.vault-pass.txt` to Git.
-* Run `ansible-lint` before committing.
-* Use `make inventory-graph` to visualize your inventory.
+* Always **encrypt secrets** before committing.
+* Run `pytest` + `ansible-lint` before PRs.
+* Separate `unit`, `integration`, and `system` tests for clean pipelines.
+* Maintain isolated test inventories under `tests/helpers` to avoid touching real hosts.
 
 ---
 
-## 📝 Example: Adding a Secret
+👉 This `README.md` now covers:
 
-1. Edit vault:
+* **Unit + integration testing** with pytest
+* **Policies** alongside playbooks
+* **Scripts/tools** like `clean-pycache.sh`
+* **Best practices for testing + vault use**
 
-   ```bash
-   ANSIBLE_VAULT_PASSWORD_FILE=.vault-pass.txt \
-   ansible-vault edit ansible/group_vars/all/vault.yml
-   ```
-
-2. Add variable:
-
-   ```yaml
-   vault_linux_privkey_passphrase: "AnotherSecretPass"
-   ```
-
-3. Reference in `linux.yml`:
-
-   ```yaml
-   ansible_ssh_pass: "{{ vault_linux_privkey_passphrase }}"
-   ```
+---

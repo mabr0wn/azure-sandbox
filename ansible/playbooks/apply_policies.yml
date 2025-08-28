@@ -1,0 +1,6 @@
+---
+- hosts: windows
+  gather_facts: no
+  tasks:
+    - name: Apply Windows baseline policies
+      include_tasks: "{{ playbook_dir }}/../policies/windows/windows_policy.yml"

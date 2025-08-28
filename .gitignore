@@ -1,5 +1,37 @@
+# Ignore Mac system files
 .DS_Store
 
-#ignore Bicep Params files.
-#*.bicepparam
+# Ignore Python virtual environment
+.venv/
+
+# Ignore Ansible vault password files
 .vault-pass.txt
+
+# Ignore common Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore logs
+*.log
+
+# Ignore compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Ignore archives
+*.zip
+*.tar.gz
+*.rar
+
+# Ignore IDE/project settings
+.vscode/
+.idea/
+*.iml
+
+# --- Removed ---
+# Ignore Bicep Params files (commented out so they are tracked now)
+#*.bicepparam

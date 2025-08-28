@@ -1,0 +1,21 @@
+---
+# Example Windows firewall policy (inbound RDP disabled; allow WinRM)
+- name: Ensure RDP inbound is disabled
+  ansible.windows.win_firewall_rule:
+    name: "RDP"
+    enabled: yes
+    state: present
+    direction: in
+    action: block
+    localport: 3389
+    protocol: TCP
+
+- name: Ensure WinRM is allowed
+  ansible.windows.win_firewall_rule:
+    name: "WinRM"
+    enabled: yes
+    state: present
+    direction: in
+    action: allow
+    localport: 5985-5986
+    protocol: TCP

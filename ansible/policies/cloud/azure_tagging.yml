@@ -1,0 +1,5 @@
+---
+# Enforce baseline Azure tags via CLI or azure.azcollection (placeholder)
+- name: Ensure required tags present (placeholder task)
+  ansible.builtin.debug:
+    msg: "Apply required tags: env, owner, costcenter"

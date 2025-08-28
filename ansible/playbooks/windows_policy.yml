@@ -1,0 +1,13 @@
+# ansible/playbooks/windows_policy.yml
+- name: Configure Windows security policy
+  hosts: windows
+  gather_facts: no
+  collections:
+    - community.windows
+
+  tasks:
+    - name: Ensure minimum password length is 14
+      win_security_policy:
+        section: 'System Access'
+        key: MinimumPasswordLength
+        value: 14

@@ -1,25 +1,31 @@
+# ansible/playbooks/windows-servers.yml
 - name: Provision Windows servers
   hosts: windows
-  gather_facts: false
+  gather_facts: no
+  collections:
+    - ansible.windows
+
   roles:
     - role: common
     - role: browsers
     - role: editors
     - role: devtools
 
-# --- Optional: Reboot if needed ---
-- name: Reboot if needed
-  ansible.windows.win_reboot:
-  when: ansible_facts.reboot_required is defined and ansible_facts.reboot_require
-  
-# --- Optional: Post-check (prove installs) ---
-- name: Verify binaries exist
-  ansible.windows.win_shell: 'cmd /c where {{ item }}'
-  loop:
-    - git.exe
-    - python.exe
-    - code.exe
-    - brave.exe
-    - chrome.exe
-  register: where_out
-  changed_when: false
+  tasks:
+    # --- Optional: Reboot if a previous task set a flag ---
+    # Expect a variable like `reboot_needed: true` from one of your roles/tasks
+    - name: Reboot if needed
+      win_reboot:
+      when: reboot_needed | default(false)
+
+    # --- Optional: Post-check (prove installs) ---
+    - name: Verify binaries exist
+      win_shell: 'cmd /c where {{ item }}'
+      loop:
+        - git.exe
+        - python.exe
+        - code.exe
+        - brave.exe
+        - chrome.exe
+      register: where_out
+      changed_when: false

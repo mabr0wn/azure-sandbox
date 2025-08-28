@@ -1,0 +1,8 @@
+ansible>=9
+pytest>=8
+pytest-ansible
+pyyaml
+jinja2
+ansible-lint
+yamllint
+pywinrm

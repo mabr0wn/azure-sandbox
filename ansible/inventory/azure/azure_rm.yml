@@ -1,7 +1,7 @@
 plugin: azure_rm
 auth_source: auto
-
-# Automatically group Windows vs Linux hosts
+include_powerstate: yes
+plain_host_names: yes
 keyed_groups:
   - key: os_profile.windows_configuration
     prefix: windows

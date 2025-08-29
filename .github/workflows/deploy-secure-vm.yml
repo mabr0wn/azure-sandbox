@@ -329,7 +329,7 @@ jobs:
       # --- COM sweep: install any leftovers the UI still shows ---
       - name: Windows updates (COM sweep - install leftovers)
         if: contains(env.OS_NAME, 'Windows-Server')
-        continue-on-error: true 
+        continue-on-error: true
         shell: bash
         run: |
           PS_SCRIPT='$ErrorActionPreference=[System.Management.Automation.ActionPreference]::Stop;
@@ -355,7 +355,7 @@ jobs:
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
             --scripts "$PS_SCRIPT"
-      
+
       # If COM sweep rebooted, wait for VM to come back
       - name: Wait for VM after COM sweep reboot (optional)
         if: contains(env.OS_NAME, 'Windows-Server')
@@ -388,10 +388,10 @@ jobs:
         shell: bash
         run: |
           PS_SCRIPT='$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop;
-      
+
           # 1) Ensure Windows Update service is running
           try { if ((Get-Service -Name wuauserv -ErrorAction Stop).Status -ne "Running") { Start-Service -Name wuauserv } } catch { }
-      
+
           # 2) USOClient nudges (modern WU)
           $uso = "$env:SystemRoot\System32\usoclient.exe"
           if (Test-Path $uso) {
@@ -401,7 +401,7 @@ jobs:
           } else {
             Write-Host "usoclient.exe not found; skipping."
           }
-      
+
           # 3) Scheduled task nudges ONLY if on-demand start is allowed
           $tasks = @(
             @{ Path = "\Microsoft\Windows\WindowsUpdate\"      ; Name = "Scheduled Start" },
@@ -418,7 +418,7 @@ jobs:
               }
             } catch { }
           }
-      
+
           # 4) COM-based detect + explicit search (reliably bumps Last checked)
           try { (New-Object -ComObject Microsoft.Update.AutoUpdate).DetectNow() | Out-Null } catch { }
           try {
@@ -427,26 +427,26 @@ jobs:
             # This triggers a scan; result not used, errors ignored
             $null = $searcher.Search("IsInstalled=0 and Type=`"Software`"")
           } catch { }
-      
+
           # 5) Legacy reporting (best-effort)
           try { Start-Process -FilePath "wuauclt.exe" -ArgumentList "/detectnow" -NoNewWindow } catch { }
           try { Start-Process -FilePath "wuauclt.exe" -ArgumentList "/reportnow" -NoNewWindow } catch { }
-      
+
           # 6) Wait up to ~3 minutes for UI to refresh "Last checked"
           $deadline = (Get-Date).AddMinutes(3)
           do {
             Start-Sleep -Seconds 5
             try { $last = (New-Object -ComObject Microsoft.Update.AutoUpdate).Results.LastSearchSuccessDate } catch { $last = $null }
           } while ($null -eq $last -and (Get-Date) -lt $deadline)
-      
+
           Write-Host "Windows Update UI reconcile complete."'
           az vm run-command invoke \
             --resource-group "$RG" \
             --name "$VM_NAME" \
             --command-id RunPowerShellScript \
             --scripts "$PS_SCRIPT"
-      
-               
+
+
 
       # ---------- Linux ----------
       - name: Linux updates (apt)
@@ -562,7 +562,7 @@ jobs:
               --plan publisher=Microsoft product=OMSGallery/SecurityInsights \
               --location "$LOCATION" >/dev/null || echo "::warning::Classic solution creation failed; continuing."
           fi
-          
+
       - name: Guardrail — keep Defender for Servers at Free
         if: ${{ env.ENABLE_DEFENDER != 'true' }}
         continue-on-error: true
@@ -576,7 +576,7 @@ jobs:
             az security pricing create --name VirtualMachines --tier Free
           else
             echo "Already Free. No change."
-          fi    
+          fi
 
       - name: Tag VM as secured
         shell: bash
@@ -584,7 +584,7 @@ jobs:
           az resource tag \
             --ids "/subscriptions/$SUBSCRIPTION/resourceGroups/$RG/providers/Microsoft.Compute/virtualMachines/$VM_NAME" \
             --tags environment=production owner=automation compliance=verified
-            
+
   configure-vm:
     runs-on: ubuntu-latest
     needs: secure-vm
@@ -599,19 +599,19 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-    
+
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-        
+
       - name: Install Ansible (and deps for WinRM)
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip
           pip3 install --upgrade pip
           pip3 install "ansible[azure]" pywinrm
-        
+
       - name: Write secrets (Vault pass + Linux SSH key)
         run: |
           # Vault password (optional but recommended)
@@ -625,18 +625,18 @@ jobs:
             echo "${{ secrets.LINUX_SSH_KEY }}" > ~/.ssh/id_rsa
             chmod 600 ~/.ssh/id_rsa
           fi
-        
+
       # Safer: show graph of static inventory (won't parse azure/hyper-v)
       - name: Show Ansible inventory graph
         run: ansible-inventory -i ansible/inventory/ping_hosts.ini --graph
-        
+
       - name: Resolve VM public IP
         id: getip
         run: |
           IP=$(az vm show -g "$RG" -n "$VM_NAME" --show-details --query publicIps -o tsv)
           if [ -z "$IP" ]; then echo "No public IP found"; exit 1; fi
           echo "ip=$IP" >> "$GITHUB_OUTPUT"
-        
+
       - name: Run Ansible Playbook (Windows)
         if: contains(env.OS_NAME, 'Windows-Server')
         env:
@@ -655,7 +655,7 @@ jobs:
             -e ansible_winrm_server_cert_validation=ignore \
             -e ansible_user="${WIN_USER}" \
             -e ansible_password="${WIN_PASS}"
-        
+
           ansible-playbook -i "$INV" ansible/playbooks/configure_vm.yml \
             --limit all \
             -e ansible_connection=winrm \
@@ -666,7 +666,7 @@ jobs:
             -e ansible_winrm_server_cert_validation=ignore \
             -e ansible_user="${WIN_USER}" \
             -e ansible_password="${WIN_PASS}"
-        
+
       - name: Install Windows apps (apps-windows.yml)
         if: contains(env.OS_NAME, 'Windows-Server')
         env:
@@ -686,7 +686,7 @@ jobs:
             -e ansible_user="${WIN_USER}" \
             -e ansible_password="${WIN_PASS}" \
             -e ansible_become=false
-        
+
       - name: Run Ansible Playbook (Ubuntu/Debian)
         if: startsWith(env.OS_NAME, 'Ubuntu') || startsWith(env.OS_NAME, 'Debian')
         env:

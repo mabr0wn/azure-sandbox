@@ -10,7 +10,7 @@
 
 # For action details see:
 # https://aka.ms/ps-rule-action
-name: Analyze Azure IaC 
+name: Analyze Azure IaC
 # Run for main or PRs against main
 on:
   # push:

@@ -56,7 +56,7 @@ jobs:
           az vm deallocate \
             --resource-group ${{ secrets.AZURE_RG }} \
             --name ${{ env.VM_NAME }}
-            
+
     # Quarantine Non-Compliant VM Instead of Shutdown
       - name: Quarantine Non-Compliant VM
         if: env.non_compliant == 'true'

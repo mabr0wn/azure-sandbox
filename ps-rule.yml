@@ -11,16 +11,16 @@ input:
   pathIgnore:
     # Ignore other files in the repository.
     - '**'
-    - '.git/**' 
+    - '.git/**'
     - '**/modules*/**'
     - '**/*.json'
-       
+
     # Include deployments.
     # - '!**/templates/*.bicepparam'
     # - '!**/templates/deploy.bicep'
     - '!**/templates/*.tests.bicep'
 execution:
-  notProcessedWarning: false  
+  notProcessedWarning: false
 
 configuration:
   # Enable automatic expansion of Azure parameter files.

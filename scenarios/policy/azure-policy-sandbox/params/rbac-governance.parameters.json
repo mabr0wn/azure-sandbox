@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "initiativeId": { "value": "" },
+    "initiativeParams": { "value": {} },
+
+    "maxOwnersDefId": {
+      "value": "/providers/Microsoft.Authorization/policyDefinitions/4f11b553-d42e-4ea3-89be-32ca364cad4c"
+    },
+    "mfaOwnersDefId": {
+      "value": "/providers/Microsoft.Authorization/policyDefinitions/aa633080-8b72-40c4-a2d7-d00e03880bed"
+    }
+  }
+}

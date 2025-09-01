@@ -1,0 +1,7 @@
+---
+# Task file: policies/windows/password_policy.yml
+- name: Ensure minimum password length is 14
+  community.windows.win_security_policy:
+    section: System Access
+    key: MinimumPasswordLength
+    value: 14

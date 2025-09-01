@@ -1,0 +1,10 @@
+all:
+  children:
+    windows:
+      hosts:
+        SKYNETDC01:
+        Skynet-Veeam:
+        Skynet-Addns-s:
+    linux:
+      hosts:
+        SKYNET-UBU1OF:

@@ -1,8 +1,13 @@
 - name: Site entrypoint
   hosts: all
-  gather_facts: no
+  gather_facts: false
+
   roles:
     - windows_setup
+
   tasks:
-    - include_tasks: ../policies/windows/firewall.yml
-    - include_tasks: ../policies/windows/password_policy.yml
+    - name: Include firewall hardening
+      ansible.builtin.include_tasks: ../policies/windows/firewall.yml
+
+    - name: Include password policy
+      ansible.builtin.include_tasks: ../policies/windows/password_policy.yml

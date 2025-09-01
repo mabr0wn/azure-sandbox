@@ -1,0 +1,12 @@
+exclude_paths:
+  - ansible/group_vars/**/vault.yml
+  - ansible/host_vars/**/vault.yml
+  - ansible/.ansible
+  - ansible/collections/ansible_collections
+  - .github/workflows/
+  - scenarios
+  - ps-rule.yml
+
+# Optional: if yamllint still too strict through ansible-lint
+skip_list:
+  - octal-values

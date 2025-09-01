@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "initiativeId": { "value": "" },
+    "initiativeParams": { "value": {} },
+
+    "allowedLocationsDefId": { "value": "/providers/Microsoft.Authorization/policyDefinitions/<ID>" },
+    "requireTagDefId":       { "value": "/providers/Microsoft.Authorization/policyDefinitions/<ID>" },
+    "denyPublicIPDefId":     { "value": "/providers/Microsoft.Authorization/policyDefinitions/<ID>" },
+    "deployAmlLinuxDefId":   { "value": "/providers/Microsoft.Authorization/policyDefinitions/<ID>" },
+    "deployAmlWindowsDefId": { "value": "/providers/Microsoft.Authorization/policyDefinitions/<ID>" },
+    "vmBackupDefId":         { "value": "/providers/Microsoft.Authorization/policyDefinitions/<ID>" },
+    "allowedVmSkusDefId":    { "value": "/providers/Microsoft.Authorization/policyDefinitions/<ID>" },
+
+    "listOfLocations":       { "value": ["eastus","eastus2"] },
+    "requiredTagName":       { "value": "Owner" },
+    "requiredTagValue":      { "value": "Matt" },
+    "allowedVmSkus":         { "value": ["Standard_D4s_v5","Standard_D8s_v5"] },
+    "dataCollectionRuleId":  { "value": "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Insights/dataCollectionRules/<dcr>" },
+    "recoveryServicesVaultId": { "value": "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.RecoveryServices/vaults/<rsv>" }
+  }
+}

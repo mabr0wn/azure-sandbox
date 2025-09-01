@@ -1,22 +1,22 @@
 - name: Monthly Windows patching
   hosts: windows
-  gather_facts: no
+  gather_facts: false
   tasks:
     - name: Apply all available Windows Updates
-      win_updates:
+      ansible.windows.win_updates:
         category_names:
           - SecurityUpdates
           - CriticalUpdates
-        reboot: yes
+        reboot: true
 
 - name: Monthly Linux patching
   hosts: linux
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: true
   tasks:
     - name: Update apt cache
-      apt:
-        update_cache: yes
+      ansible.builtin.apt:
+        update_cache: true
     - name: Upgrade all packages
-      apt:
+      ansible.builtin.apt:
         upgrade: dist

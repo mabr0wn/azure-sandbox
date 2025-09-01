@@ -3,7 +3,7 @@
 - name: Ensure RDP inbound is disabled
   ansible.windows.win_firewall_rule:
     name: "RDP"
-    enabled: yes
+    enabled: true
     state: present
     direction: in
     action: block
@@ -13,7 +13,7 @@
 - name: Ensure WinRM is allowed
   ansible.windows.win_firewall_rule:
     name: "WinRM"
-    enabled: yes
+    enabled: true
     state: present
     direction: in
     action: allow

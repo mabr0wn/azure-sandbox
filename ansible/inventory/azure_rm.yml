@@ -1,0 +1,11 @@
+plugin: azure_rm
+auth_source: auto
+include_powerstate: true
+plain_host_names: true
+keyed_groups:
+  - key: os_profile.windows_configuration
+    prefix: windows
+    value: present
+  - key: os_profile.linux_configuration
+    prefix: linux
+    value: present

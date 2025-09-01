@@ -4,16 +4,16 @@
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^#?PasswordAuthentication"
-    line: "PasswordAuthentication no"
-    create: no
-    backrefs: no
-  notify: Restart sshd
+    line: "PasswordAuthentication false"
+    create: false
+    backrefs: false
+  falsetify: Restart sshd
 
 - name: Ensure PermitRootLogin is prohibit-password
   ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^#?PermitRootLogin"
     line: "PermitRootLogin prohibit-password"
-    create: no
-    backrefs: no
-  notify: Restart sshd
+    create: false
+    backrefs: false
+  falsetify: Restart sshd

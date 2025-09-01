@@ -26,6 +26,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # ⬇️ Add this step BEFORE ansible-lint
+      - name: Install Ansible Galaxy content
+        run: ansible-galaxy collection install -r ansible/collections/requirements.yml -p ansible/collections
+
       - name: ansible-lint
         run: |
           ansible-lint -v

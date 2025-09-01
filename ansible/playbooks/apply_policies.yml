@@ -1,6 +1,7 @@
 ---
-- hosts: windows
-  gather_facts: no
+- name: Apply Windows policies
+  hosts: windows
+  gather_facts: false
   tasks:
     - name: Apply Windows baseline policies
-      include_tasks: "{{ playbook_dir }}/../policies/windows/windows_policy.yml"
+      ansible.builtin.include_tasks: "{{ playbook_dir }}/../policies/windows/windows_policy.yml"

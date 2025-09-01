@@ -1,9 +1,12 @@
+---
+# ansible/roles/windows_setup/tasks/main.yml
+
 - name: Install IIS
-  win_feature:
+  ansible.windows.win_feature:
     name: Web-Server
     state: present
 
-- name: Create a test HTML page
-  win_copy:
-    content: "<h1>Hello from Ansible on Windows!</h1>"
-    dest: C:\inetpub\wwwroot\index.html
+- name: Ensure IIS service is running
+  ansible.windows.win_service:
+    name: W3SVC
+    state: started

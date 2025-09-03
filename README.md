@@ -168,4 +168,16 @@ Azure provides SDKs and APIs for various programming languages including .NET, J
 
 ---
 
+### Common prefixes
+
+- **feat**: → a new feature
+- **fix**: → a bug fix
+- **docs**: → documentation only
+- **style**: → formatting, whitespace, linting (no code change)
+- **refactor**: → code restructuring (no new features/bugs fixed)
+- **test**: → adding or modifying tests
+- **chore**: → repo housekeeping (build scripts, tooling, configs, CI/CD, dependencies)
+---
+
+
 Feel free to reach out with any questions or feedback. Happy cloud computing with Azure!

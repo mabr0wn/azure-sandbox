@@ -1,0 +1,80 @@
+name: azure-capacity
+on:
+  # schedule: [ { cron: "0 12 * * *" } ]  # daily UTC (disabled for now)
+  workflow_dispatch: {}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r requirements.txt
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Capacity scout (JSON)
+        env:
+          AZ_SUBSCRIPTION_ID: ${{ secrets.AZ_SUBSCRIPTION_ID }}
+        run: |
+          mkdir -p scripts/azure-capacity/reports
+          python scripts/azure-capacity/py/capacity_scout.py > scripts/azure-capacity/reports/last.json
+
+      - name: Build CSV from JSON
+        run: |
+          jq -r '
+            ["region","sku","available","restricted"],
+            (.results[] | [.region,.sku,.available,.restricted])
+            | @csv
+          ' scripts/azure-capacity/reports/last.json \
+          > scripts/azure-capacity/reports/last.csv
+
+      - name: Build plain-text summary for email body
+        id: summary_out
+        run: |
+          {
+            echo "Azure Capacity Report"
+            echo
+            jq -r '
+              .results
+              | (["Region","SKU","Available","Restricted"]),
+                (.[] | [.region,.sku, (if .available then "yes" else "no" end), (if .restricted then "yes" else "no" end)])
+              | @tsv
+            ' scripts/azure-capacity/reports/last.json | column -t -s$'\t'
+          } > scripts/azure-capacity/reports/summary.txt
+          echo 'summary<<EOF' >> "$GITHUB_OUTPUT"
+          cat scripts/azure-capacity/reports/summary.txt >> "$GITHUB_OUTPUT"
+          echo 'EOF' >> "$GITHUB_OUTPUT"
+
+      - name: Email report (O365 SMTP)
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.office365.com
+          server_port: 587
+          secure: starttls
+          username: ${{ secrets.O365_USERNAME }}
+          password: ${{ secrets.O365_PASSWORD }}
+          subject: "Azure Capacity Report - ${{ github.repository }} - Run #${{ github.run_number }}"
+          to: ${{ secrets.REPORT_TO }}
+          from: Azure Capacity Bot <${{ secrets.O365_FROM }}>
+          body: ${{ steps.summary_out.outputs.summary }}
+          attachments: |
+            scripts/azure-capacity/reports/last.json
+            scripts/azure-capacity/reports/last.csv
+
+      - name: Upload report artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: capacity-report
+          path: |
+            scripts/azure-capacity/reports/last.json
+            scripts/azure-capacity/reports/last.csv
+            scripts/azure-capacity/reports/summary.txt

@@ -1,0 +1,11 @@
+# scripts/azure-capacity/config/targets.example.yml
+subscription_id: "00000000-1111-2222-3333-444444444444"
+
+regions:
+  - eastus
+  - eastus2
+  - centralus
+
+skus:
+  - Standard_D4s_v5
+  - Standard_E4s_v5

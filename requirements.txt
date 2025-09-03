@@ -6,3 +6,6 @@ jinja2
 ansible-lint
 yamllint
 pywinrm
+azure-identity
+azure-mgmt-compute
+requests

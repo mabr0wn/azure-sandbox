@@ -1,0 +1,85 @@
+requires:
+  PSRule.Rules.Azure: '>=1.12.2'
+
+include:
+  module:
+    - PSRule.Rules.Azure
+
+# Only scan Bicep parameter files; ignore raw .bicep
+input:
+  pathIgnore:
+    - .git/**
+    - .github/**
+    - .venv/**
+    - node_modules/**
+    - ansible/**
+    - '**/group_vars/**'
+    - '**/vault*'
+    - scripts/**
+    - '**/*.md'
+    - '**/*.png'
+    - '**/*.jpg'
+    - '**/*.svg'
+    - '**'               # ignore everything by default
+    - '!**/*.bicepparam' # include only .bicepparam
+    # - '!**/*.json'     # (optional) include ARM JSON
+
+execution:
+  notProcessedWarning: false
+
+configuration:
+  # Expansion so .bicepparam links to its template for validation
+  AZURE_BICEP_FILE_EXPANSION: true
+  AZURE_BICEP_PARAMS_FILE_EXPANSION: true
+  AZURE_PARAMETER_FILE_EXPANSION: true
+  AZURE_BICEP_FILE_EXPANSION_TIMEOUT: 10
+  AZURE_BICEP_CHECK_TOOL: true
+  AZURE_BICEP_MINIMUM_VERSION: '0.25.53'
+  AZURE_AKS_CLUSTER_MINIMUM_VERSION: 1.22.4
+
+  # Names safe to show in reports
+  AZURE_DEPLOYMENT_NONSENSITIVE_PARAMETER_NAMES:
+    - keys
+
+  # ---- Organization policy knobs (built-in rules read these) ----
+
+  # Allowed regions
+  AZURE_RESOURCE_ALLOWED_LOCATIONS:
+    - eastus
+    - eastus2
+
+  # Required tags (now includes 'app')
+  AZURE_REQUIRED_TAGS:
+    - env
+    - owner
+    - dept
+    - app
+
+  # Allowed values for env (built-in rule reads this)
+  AZURE_TAG_ENV_ALLOWED:
+    - prod
+    - dev
+    - test
+
+  # VM admin username policy
+  AZURE_VM_ADMIN_USERNAME_NOT_ALLOWED:
+    - admin
+    - Administrator
+    - root
+
+  # Storage hardening
+  AZURE_STORAGE_MIN_TLS_VERSION: 'TLS1_2'
+  AZURE_STORAGE_SECURE_TRANSFER_REQUIRED: true
+  AZURE_STORAGE_BLOB_PUBLIC_ACCESS_DISABLED: true
+
+  # Key Vault baseline
+  AZURE_KEYVAULT_PURGE_PROTECTION_REQUIRED: true
+  AZURE_KEYVAULT_SOFT_DELETE_REQUIRED: true
+
+rule:
+  # We’ll enable local rules to validate dept/owner/app allowed values (next file)
+  includeLocal: true
+  exclude:
+    - Azure.Template.UseDescriptions
+    - Azure.VM.UseHybridUseBenefit
+    - Azure.VM.Standalone

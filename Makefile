@@ -1,5 +1,8 @@
 # ===== Makefile =====
 SHELL := /bin/bash
+# ===== Azure capacity (SKU & quota) =====
+CAP_DIR := scripts/azure-capacity
+PY := python3
 ANSIBLE_DIR := ansible
 INVENTORY_DIR := $(ANSIBLE_DIR)/inventory
 VAULT_PASS_FILE := .vault-pass.txt
@@ -48,6 +51,16 @@ help:
 	@echo "  make policy-setup              # Scaffold Azure Policy folders/files + workflow"
 	@echo "  make policy-tree               # Display policy folder structure"
 	@echo "  make policy-deploy             # Deploy policy assignments (CLI)"
+	@echo "  make psrule                   # Run PSRule against IaC/bicep/templates/**"
+	@echo "  make psrule-one FILE=<path>   # Run PSRule against one file/folder"
+	@echo "  make psrule-install           # Install PSRule.Rules.Azure module"
+	@echo "  --- Azure Capacity ---"
+	@echo "  make cap-sku [REGION=.. SKU=..]          # Check one SKU in one region"
+	@echo "  make cap-scan [REGION=..]                # Show restricted SKUs in region"
+	@echo "  make cap-quota [REGION=.. MIN_BUFFER=..] # Total vCPU buffer in region"
+	@echo "  make cap-quota-multi [REGIONS=..]        # vCPU buffer across regions"
+	@echo "  make cap-quota-family [REGION=..]        # Per-family vCPU quotas"
+
 
 # =========
 # BOOTSTRAP
@@ -422,3 +435,80 @@ policy-deploy:
 policy-tree:
 	@echo "▶ Policy tree:"
 	@find policy -maxdepth 4 -type d -print | sed 's/[^-][^\/]*\//  /g;s/\/$$//'
+
+# =========
+# PSRULE (Azure Bicep lint)
+BICEP_TEMPLATES := IaC/bicep/templates/**/*.bicepparam
+PSRULE_OPTION   := ./.ps-rule/ps-rule.yml
+
+.PHONY: psrule-install
+psrule-install:
+	@pwsh -NoLogo -NoProfile -Command "\
+	  if (-not (Get-Module -ListAvailable -Name PSRule.Rules.Azure)) { \
+	    Write-Host 'Installing PSRule.Rules.Azure...' -ForegroundColor Cyan; \
+	    Install-Module PSRule.Rules.Azure -Scope CurrentUser -Force -AllowClobber; \
+	  } else { \
+	    Write-Host 'PSRule.Rules.Azure already installed.' -ForegroundColor Green; \
+	  }"
+
+.PHONY: psrule
+psrule:
+	@pwsh -NoLogo -NoProfile -Command "\
+	  if (-not (Get-Command bicep -ErrorAction SilentlyContinue)) { \
+	    Write-Host 'WARNING: bicep CLI not on PATH. PSRule may skip Bicep checks.' -ForegroundColor Yellow; \
+	  } ; \
+	  Invoke-PSRule \
+	    -InputPath '$(BICEP_TEMPLATES)' \
+	    -Module PSRule.Rules.Azure \
+	    -Option '$(PSRULE_OPTION)' \
+	    -As Summary; \
+	  if (\$$?) { Write-Host '✔ PSRule checks passed' -ForegroundColor Green } \
+	  else { Write-Host '✖ PSRule checks failed' -ForegroundColor Red; exit 1 }"
+
+.PHONY: psrule-one
+psrule-one:
+	@if [ -z "${FILE}" ]; then \
+	  echo "Usage: make psrule-one FILE=<.bicepparam or folder>"; exit 1; \
+	fi
+	@if echo "${FILE}" | grep -q '\.bicep$$'; then \
+	  echo "NOTE: Raw .bicep is ignored by PSRule (scan .bicepparam instead)"; \
+	fi
+	@pwsh -NoLogo -NoProfile -Command "\
+	  Invoke-PSRule \
+	    -InputPath '${FILE}' \
+	    -Module PSRule.Rules.Azure \
+	    -Option './.ps-rule/ps-rule.yml' \
+	    -As Summary; \
+	  if (\$$?) { Write-Host '✔ PSRule checks passed' -ForegroundColor Green } \
+	  else { Write-Host '✖ PSRule checks failed' -ForegroundColor Red; exit 1 }"
+
+.PHONY: cap-sku cap-scan cap-quota cap-quota-multi cap-quota-family
+# Check a single SKU in one region (defaults if env not set)
+cap-sku:
+	@SKU=$${SKU:-Standard_D4s_v5} REGION=$${REGION:-eastus2} \
+	bash $(CAP_DIR)/bin/check-sku.sh
+
+# List restricted SKUs in a region (fast snapshot)
+cap-scan:
+	@REGION=$${REGION:-eastus2} \
+	bash $(CAP_DIR)/bin/scan-region.sh
+
+# Quota buffer for one region (exit 2 if remaining < MIN_BUFFER)
+# Uses renamed script path if you followed the naming suggestion:
+#   ps/check-region-vcpu.ps1
+cap-quota:
+	@pwsh -File $(CAP_DIR)/ps/check-region-vcpu.ps1 \
+	  -Region $${REGION:-eastus2} \
+	  -MinBuffer $${MIN_BUFFER:-32}
+
+# Check multiple regions for total-vCPU buffer
+cap-quota-multi:
+	@pwsh -File $(CAP_DIR)/ps/check-multiregion-vcpu.ps1 \
+	  -Regions $${REGIONS:-"eastus eastus2 centralus"} \
+	  -MinBuffer $${MIN_BUFFER:-32}
+
+# Per-family vCPU quotas in a region (Dv5/Ev5 etc.)
+cap-quota-family:
+	@pwsh -File $(CAP_DIR)/ps/check-family-vcpu.ps1 \
+	  -Region $${REGION:-eastus2} \
+	  -MinBufferPerFamily $${MIN_FAMILY_BUFFER:-16}

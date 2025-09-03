@@ -1,3 +1,5 @@
+using 'main.bicep'
+
 // main.bicepparam
 param updateScheduleName = 'patch-saturday-3am'
 param location = 'eastus'
